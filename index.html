@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>查询系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+        }
+
+        .section-title {
+            font-size: 20px;
+            color: #374151;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .upload-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .upload-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+        }
+
+        .upload-card h3 {
+            font-size: 16px;
+            color: #374151;
+            margin-bottom: 12px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .upload-area:hover {
+            background: #f3f4f6;
+            border-color: #5568d3;
+        }
+
+        .upload-area.dragover {
+            background: #eef2ff;
+            border-color: #4f46e5;
+        }
+
+        .upload-area input {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 8px;
+        }
+
+        .upload-hint {
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f3f4f6;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+            white-space: nowrap;
+        }
+
+        th {
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+            position: sticky;
+            top: 0;
+            background: #f3f4f6;
+            z-index: 1;
+        }
+
+        td {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+
+        .status-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #3b82f6;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #9ca3af;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .instructions {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .instructions h4 {
+            color: #1e40af;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .instructions ul {
+            margin-left: 20px;
+            color: #1e3a8a;
+            line-height: 1.8;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+        }
+
+        .filter-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+            margin-bottom: 20px;
+        }
+
+        .filter-item label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #4b5563;
+            font-weight: 500;
+        }
+
+        .filter-item input,
+        .filter-item select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .filter-item input:focus,
+        .filter-item select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .pagination-info {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .pagination-info strong {
+            color: #374151;
+            font-weight: 600;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .page-btn {
+            padding: 8px 16px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            transition: all 0.3s;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-numbers {
+            display: flex;
+            gap: 5px;
+        }
+
+        .page-number {
+            min-width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            transition: all 0.3s;
+        }
+
+        .page-number:hover {
+            background: #f3f4f6;
+            border-color: #667eea;
+        }
+
+        .page-number.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-ellipsis {
+            min-width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        .page-size-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .page-size-selector label {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .page-size-selector select {
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            background: white;
+            color: #374151;
+        }
+
+        .page-size-selector select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .join-explain {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #92400e;
+            line-height: 1.6;
+        }
+
+        .join-explain strong {
+            color: #78350f;
+        }
+
+        .danger-explain {
+            background: #fef2f2;
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #991b1b;
+            line-height: 1.6;
+        }
+
+        .danger-explain strong {
+            color: #7f1d1d;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-box .modal-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .modal-box h3 {
+            font-size: 20px;
+            color: #991b1b;
+            margin-bottom: 10px;
+        }
+
+        .modal-box p {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .modal-buttons .btn {
+            min-width: 120px;
+            justify-content: center;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        /* ============ 大区统计样式 ============ */
+        .region-summary {
+            margin-top: 25px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+        }
+
+        .region-summary-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .region-summary-desc {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .region-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .region-card {
+            background: linear-gradient(135deg, #f0f4ff 0%, #e8ecff 100%);
+            border-radius: 10px;
+            padding: 18px;
+            border: 1px solid #c7d2fe;
+            transition: all 0.3s;
+        }
+
+        .region-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .region-card-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #4338ca;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+
+        .region-card-count {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ef4444;
+            line-height: 1;
+        }
+
+        .region-card-unit {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .region-card.unknown {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-color: #fbbf24;
+        }
+
+        .region-card.unknown .region-card-name {
+            color: #92400e;
+        }
+
+        .region-summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .region-summary-table th,
+        .region-summary-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .region-summary-table th {
+            background: #f3f4f6;
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .region-summary-table td {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .region-summary-table .count-cell {
+            font-weight: 700;
+            color: #ef4444;
+            font-size: 16px;
+        }
+
+        .region-summary-table .percent-cell {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .region-summary-table tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .region-total-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding: 12px 15px;
+            background: #fef2f2;
+            border-radius: 8px;
+            border: 1px solid #fca5a5;
+        }
+
+        .region-total-bar strong {
+            color: #991b1b;
+            font-size: 15px;
+        }
+
+        .region-total-bar span {
+            color: #ef4444;
+            font-size: 20px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>合并查询系统</h1>
+        </div>
+
+        <div class="content">
+            <!-- 上传区域 -->
+            <div class="section">
+                <div class="section-title">
+                    <span>Step 1</span> 上传数据表
+                </div>
+
+                <div class="upload-row">
+                    <!-- Visit 上传 -->
+                    <div class="upload-card">
+                        <h3>Visit 表（必须上传）</h3>
+                        <div class="instructions">
+                            <h4>文件格式要求：</h4>
+                            <ul>
+                                <li>支持 Excel (.xlsx, .xls) 和 CSV 文件</li>
+                                <li>必须包含列：拜访记录编号、拜访开始时间、拜访结束时间、拜访人、客户名称、客户编码、拜访用时</li>
+                                <li>拜访用时必须为数字（分钟）</li>
+                            </ul>
+                        </div>
+                        <div class="upload-area" id="visitUploadArea" onclick="document.getElementById('fileInput').click()">
+                            <div class="upload-icon">📋</div>
+                            <p class="upload-text">点击或拖拽上传 Visit 文件</p>
+                            <p class="upload-hint">支持 .xlsx, .xls, .csv 格式</p>
+                            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFileSelect(event)">
+                        </div>
+                        <div id="uploadStatus"></div>
+                    </div>
+
+                    <!-- Terminal 上传 -->
+                    <div class="upload-card">
+                        <h3>Terminal 表（必须上传）</h3>
+                        <div class="instructions">
+                            <h4>文件格式要求：</h4>
+                            <ul>
+                                <li>支持 Excel (.xlsx, .xls) 和 CSV 文件</li>
+                                <li>必须包含列：客户编码、所属片区、所属大区</li>
+                                <li>用于补充 Visit 表中客户的归属信息</li>
+                            </ul>
+                        </div>
+                        <div class="upload-area" id="terminalUploadArea" onclick="document.getElementById('terminalFileInput').click()">
+                            <div class="upload-icon">🏢</div>
+                            <p class="upload-text">点击或拖拽上传 Terminal 文件</p>
+                            <p class="upload-hint">支持 .xlsx, .xls, .csv 格式</p>
+                            <input type="file" id="terminalFileInput" accept=".xlsx,.xls,.csv" onchange="handleTerminalFileSelect(event)">
+                        </div>
+                        <div id="terminalUploadStatus"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 查询和展示区域 -->
+            <div class="section">
+                <div class="section-title">
+                    <span>Step 2</span> 查询合并后数据
+                </div>
+
+                <div class="filter-form">
+                    <div class="filter-item">
+                        <label for="maxMinutes">最大拜访用时（分钟）</label>
+                        <input type="number" id="maxMinutes" value="5" min="0" step="1">
+                    </div>
+                    <div class="filter-item">
+                        <label for="visitor">拜访人</label>
+                        <input type="text" id="visitor">
+                    </div>
+                    <div class="filter-item">
+                        <label for="customerName">客户名称</label>
+                        <input type="text" id="customerName">
+                    </div>
+                    <div class="filter-item">
+                        <label for="customerCode">客户编码</label>
+                        <input type="text" id="customerCode">
+                    </div>
+                    <div class="filter-item">
+                        <label for="area">所属片区</label>
+                        <input type="text" id="area">
+                    </div>
+                    <div class="filter-item">
+                        <label for="region">所属大区</label>
+                        <input type="text" id="region">
+                    </div>
+                    <div class="filter-item">
+                        <label for="startDate">开始日期 >=</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <div class="filter-item">
+                        <label for="endDate">结束日期 <=</label>
+                        <input type="date" id="endDate">
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="queryRecords()">
+                        执行查询
+                    </button>
+                    <button class="btn btn-success" onclick="exportToExcel()" id="exportBtn" style="display: none;">
+                        导出为 Excel
+                    </button>
+                </div>
+
+                <div id="queryStatus"></div>
+
+                <!-- 大区异常统计区域 -->
+                <div id="regionSummaryContainer"></div>
+
+                <div id="resultContainer"></div>
+
+                <div id="paginationContainer" style="display: none;"></div>
+            </div>
+
+            <!-- 清理数据库 -->
+            <div class="section">
+                <div class="section-title">
+                    <span>Step 3</span> 清理数据库（使用完毕后执行）
+                </div>
+
+                <div class="danger-explain">
+                    <strong>注意：此操作不可逆！</strong>点击下方按钮将删除整个数据库（包括 Visit、Terminal 表及其所有数据）。
+                    请确认已导出所需数据后再执行清理。服务器通过 Ctrl+C 停止时也会自动删除数据库。
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-danger" id="cleanupBtn" onclick="showCleanupConfirm()">
+                        删除数据库（清理所有数据）
+                    </button>
+                </div>
+
+                <div id="cleanupStatus"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认弹窗 -->
+    <div class="modal-overlay" id="cleanupModal">
+        <div class="modal-box">
+            <div class="modal-icon">&#9888;</div>
+            <h3>确认删除数据库？</h3>
+            <p>此操作将永久删除数据库及其中的所有表和数据（Visit、Terminal），且无法恢复。<br><br>请确认已导出所需的查询结果。</p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="hideCleanupConfirm()">取消</button>
+                <button class="btn btn-danger" onclick="executeCleanup()">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        const API_URL = 'http://localhost:3000';
+        let currentData = [];
+        let currentPage = 1;
+        let pageSize = 1000;
+        let totalPages = 0;
+
+        // ============ Visit 文件上传 ============
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const statusDiv = document.getElementById('uploadStatus');
+            statusDiv.innerHTML = '<div class="status-message status-info">正在读取文件...</div>';
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                    if (jsonData.length === 0) {
+                        statusDiv.innerHTML = '<div class="status-message status-error">文件为空，请检查文件内容</div>';
+                        return;
+                    }
+
+                    statusDiv.innerHTML = '<div class="status-message status-success">文件读取成功，共 ' + jsonData.length + ' 条记录，正在上传...</div>';
+                    uploadVisitInBatches(jsonData);
+                } catch (error) {
+                    statusDiv.innerHTML = '<div class="status-message status-error">文件解析失败: ' + error.message + '</div>';
+                }
+            };
+
+            reader.onerror = function() {
+                statusDiv.innerHTML = '<div class="status-message status-error">文件读取失败</div>';
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function uploadVisitInBatches(records) {
+            const statusDiv = document.getElementById('uploadStatus');
+            const BATCH_SIZE = 5000;
+            const totalBatches = Math.ceil(records.length / BATCH_SIZE);
+            let totalInserted = 0;
+
+            try {
+                for (let i = 0; i < totalBatches; i++) {
+                    const batch = records.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+                    statusDiv.innerHTML = '<div class="status-message status-info">正在上传第 ' + (i + 1) + '/' + totalBatches + ' 批（每批 ' + BATCH_SIZE + ' 条）...</div>';
+
+                    const response = await fetch(API_URL + '/uploadVisit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ records: batch })
+                    });
+
+                    const result = await response.json();
+                    if (!result.success) {
+                        statusDiv.innerHTML = '<div class="status-message status-error">第 ' + (i + 1) + ' 批上传失败: ' + result.error + '</div>';
+                        return;
+                    }
+                    totalInserted += batch.length;
+                }
+
+                statusDiv.innerHTML = '<div class="status-message status-success">全部上传成功！共导入 ' + totalInserted + ' 条 Visit 记录。现在可以查询数据了。</div>';
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status-message status-error">上传失败: ' + error.message + '<br>请确保后端服务正在运行</div>';
+            }
+        }
+
+        // ============ Terminal 文件上传 ============
+
+        function handleTerminalFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const statusDiv = document.getElementById('terminalUploadStatus');
+            statusDiv.innerHTML = '<div class="status-message status-info">正在读取 Terminal 文件...</div>';
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                    if (jsonData.length === 0) {
+                        statusDiv.innerHTML = '<div class="status-message status-error">Terminal 文件为空</div>';
+                        return;
+                    }
+
+                    statusDiv.innerHTML = '<div class="status-message status-success">Terminal 文件读取成功，共 ' + jsonData.length + ' 条记录，正在上传...</div>';
+                    uploadTerminalInBatches(jsonData);
+                } catch (error) {
+                    statusDiv.innerHTML = '<div class="status-message status-error">Terminal 文件解析失败: ' + error.message + '</div>';
+                }
+            };
+
+            reader.onerror = function() {
+                statusDiv.innerHTML = '<div class="status-message status-error">Terminal 文件读取失败</div>';
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function uploadTerminalInBatches(records) {
+            const statusDiv = document.getElementById('terminalUploadStatus');
+            const BATCH_SIZE = 5000;
+            const totalBatches = Math.ceil(records.length / BATCH_SIZE);
+            let totalInserted = 0;
+
+            try {
+                for (let i = 0; i < totalBatches; i++) {
+                    const batch = records.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+                    statusDiv.innerHTML = '<div class="status-message status-info">正在上传第 ' + (i + 1) + '/' + totalBatches + ' 批...</div>';
+
+                    const response = await fetch(API_URL + '/uploadTerminal', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ records: batch })
+                    });
+
+                    const result = await response.json();
+                    if (!result.success) {
+                        statusDiv.innerHTML = '<div class="status-message status-error">第 ' + (i + 1) + ' 批上传失败: ' + result.error + '</div>';
+                        return;
+                    }
+                    totalInserted += batch.length;
+                }
+
+                statusDiv.innerHTML = '<div class="status-message status-success">全部上传成功！共导入 ' + totalInserted + ' 条 Terminal 记录（已自动去重）。</div>';
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status-message status-error">上传失败: ' + error.message + '</div>';
+            }
+        }
+
+        // ============ 查询 ============
+
+        async function queryRecords() {
+            const maxMinutes = parseInt(document.getElementById('maxMinutes').value) || 5;
+            const visitor = document.getElementById('visitor').value.trim();
+            const customerName = document.getElementById('customerName').value.trim();
+            const customerCode = document.getElementById('customerCode').value.trim();
+            const area = document.getElementById('area').value.trim();
+            const region = document.getElementById('region').value.trim();
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            const params = new URLSearchParams({
+                maxMinutes,
+                visitor,
+                customerName,
+                customerCode,
+                area,
+                region,
+                startDate,
+                endDate
+            });
+
+            const statusDiv = document.getElementById('queryStatus');
+            const resultDiv = document.getElementById('resultContainer');
+            const paginationDiv = document.getElementById('paginationContainer');
+            const regionSummaryDiv = document.getElementById('regionSummaryContainer');
+
+            statusDiv.innerHTML = '<div class="status-message status-info">正在查询合并数据（Visit LEFT JOIN Terminal）...</div>';
+            resultDiv.innerHTML = '';
+            paginationDiv.style.display = 'none';
+            regionSummaryDiv.innerHTML = '';
+            document.getElementById('exportBtn').style.display = 'none';
+
+            try {
+                const response = await fetch(API_URL + '/getMinutes?' + params.toString());
+                const result = await response.json();
+
+                if (result.success) {
+                    currentData = result.data;
+                    currentPage = 1;
+
+                    if (currentData.length === 0) {
+                        statusDiv.innerHTML = '<div class="status-message status-info">未找到符合条件的记录</div>';
+                        resultDiv.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><h3>暂无符合条件的记录</h3><p>请尝试调整查询条件</p></div>';
+                    } else {
+                        totalPages = Math.ceil(currentData.length / pageSize);
+                        statusDiv.innerHTML = '<div class="status-message status-success">查询成功！找到 ' + currentData.length + ' 条记录（已去重），共 ' + totalPages + ' 页</div>';
+                        renderRegionSummary();
+                        displayResults();
+                        renderPagination();
+                        document.getElementById('exportBtn').style.display = 'inline-flex';
+                        paginationDiv.style.display = 'block';
+                    }
+                } else {
+                    statusDiv.innerHTML = '<div class="status-message status-error">查询失败: ' + result.error + '</div>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status-message status-error">查询失败: ' + error.message + '<br>请确保后端服务正在运行</div>';
+            }
+        }
+
+        // ============ 大区异常统计 ============
+
+        function renderRegionSummary() {
+            var regionSummaryDiv = document.getElementById('regionSummaryContainer');
+
+            // 统计每个大区的异常记录数（即当前查询条件下的记录数）
+            var regionCountMap = {};
+            var totalCount = currentData.length;
+
+            currentData.forEach(function(row) {
+                var regionName = row.所属大区 || '未知大区';
+                if (!regionCountMap[regionName]) {
+                    regionCountMap[regionName] = 0;
+                }
+                regionCountMap[regionName]++;
+            });
+
+            // 将统计结果转为数组并按数量降序排列
+            var regionList = [];
+            for (var key in regionCountMap) {
+                if (regionCountMap.hasOwnProperty(key)) {
+                    regionList.push({ name: key, count: regionCountMap[key] });
+                }
+            }
+            regionList.sort(function(a, b) { return b.count - a.count; });
+
+            // 构建 HTML
+            var html = '<div class="region-summary">';
+            html += '<div class="region-summary-title">各大区异常情况统计</div>';
+            html += '<div class="region-summary-desc">';
+            html += '以下统计基于当前查询条件筛选出的结果，展示每个大区在该查询条件下的异常拜访记录数量。';
+            html += '异常标准：拜访用时 &le; ' + (parseInt(document.getElementById('maxMinutes').value) || 5) + ' 分钟的记录。';
+            html += '</div>';
+
+            // 卡片展示
+            html += '<div class="region-cards">';
+            regionList.forEach(function(item) {
+                var isUnknown = (item.name === '未知大区');
+                html += '<div class="region-card' + (isUnknown ? ' unknown' : '') + '">';
+                html += '<div class="region-card-name">' + item.name + '</div>';
+                html += '<div class="region-card-count">' + item.count + '</div>';
+                html += '<div class="region-card-unit">条异常记录</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+
+            // 汇总条
+            html += '<div class="region-total-bar">';
+            html += '<strong>异常记录总计：</strong>';
+            html += '<span>' + totalCount + '</span>';
+            html += '<strong style="margin-left: 5px;">条</strong>';
+            html += '<span style="color: #6b7280; font-size: 14px; font-weight: normal; margin-left: 15px;">（覆盖 ' + regionList.length + ' 个大区）</span>';
+            html += '</div>';
+
+            // 明细表格
+            html += '<div class="table-container" style="margin-top: 15px;">';
+            html += '<table class="region-summary-table">';
+            html += '<thead><tr>';
+            html += '<th>序号</th>';
+            html += '<th>所属大区</th>';
+            html += '<th>异常记录数</th>';
+            html += '<th>占比</th>';
+            html += '</tr></thead>';
+            html += '<tbody>';
+
+            regionList.forEach(function(item, index) {
+                var percent = totalCount > 0 ? ((item.count / totalCount) * 100).toFixed(2) : '0.00';
+                html += '<tr>';
+                html += '<td>' + (index + 1) + '</td>';
+                html += '<td>' + item.name + '</td>';
+                html += '<td class="count-cell">' + item.count + '</td>';
+                html += '<td class="percent-cell">' + percent + '%</td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            html += '</div>';
+
+            regionSummaryDiv.innerHTML = html;
+        }
+
+        // ============ 显示结果（分页） ============
+
+        function displayResults() {
+            const resultDiv = document.getElementById('resultContainer');
+
+            const startIndex = (currentPage - 1) * pageSize;
+            const endIndex = Math.min(startIndex + pageSize, currentData.length);
+            const pageData = currentData.slice(startIndex, endIndex);
+
+            let tableHTML = '<div class="table-container"><table><thead><tr>';
+            tableHTML += '<th>序号</th>';
+            tableHTML += '<th>拜访记录编号</th>';
+            tableHTML += '<th>拜访开始时间</th>';
+            tableHTML += '<th>拜访结束时间</th>';
+            tableHTML += '<th>拜访人</th>';
+            tableHTML += '<th>客户名称</th>';
+            tableHTML += '<th>客户编码</th>';
+            tableHTML += '<th>拜访用时</th>';
+            tableHTML += '<th>所属片区</th>';
+            tableHTML += '<th>所属大区</th>';
+            tableHTML += '</tr></thead><tbody>';
+
+            pageData.forEach(function(row, index) {
+                var globalIndex = startIndex + index + 1;
+                tableHTML += '<tr>';
+                tableHTML += '<td><strong>' + globalIndex + '</strong></td>';
+                tableHTML += '<td>' + (row.拜访记录编号 || '-') + '</td>';
+                tableHTML += '<td>' + (row.拜访开始时间 || '-') + '</td>';
+                tableHTML += '<td>' + (row.拜访结束时间 || '-') + '</td>';
+                tableHTML += '<td>' + (row.拜访人 || '-') + '</td>';
+                tableHTML += '<td>' + (row.客户名称 || '-') + '</td>';
+                tableHTML += '<td>' + (row.客户编码 || '-') + '</td>';
+                tableHTML += '<td><span class="badge">' + row.拜访用时 + ' 分钟</span></td>';
+                tableHTML += '<td>' + (row.所属片区 || '-') + '</td>';
+                tableHTML += '<td>' + (row.所属大区 || '-') + '</td>';
+                tableHTML += '</tr>';
+            });
+
+            tableHTML += '</tbody></table></div>';
+            resultDiv.innerHTML = tableHTML;
+        }
+
+        // ============ 分页 ============
+
+        function renderPagination() {
+            const paginationDiv = document.getElementById('paginationContainer');
+
+            const startIndex = (currentPage - 1) * pageSize + 1;
+            const endIndex = Math.min(currentPage * pageSize, currentData.length);
+
+            let html = '<div class="pagination-container">';
+            html += '<div class="pagination-info">';
+            html += '显示 <strong>' + startIndex + '</strong> - <strong>' + endIndex + '</strong> 条，';
+            html += '共 <strong>' + currentData.length + '</strong> 条记录';
+            html += '</div>';
+
+            html += '<div class="pagination-controls">';
+
+            html += '<div class="page-size-selector">';
+            html += '<label>每页显示：</label>';
+            html += '<select onchange="changePageSize(this.value)">';
+            [100, 500, 1000, 2000].forEach(function(size) {
+                html += '<option value="' + size + '"' + (pageSize === size ? ' selected' : '') + '>' + size + '</option>';
+            });
+            html += '</select></div>';
+
+            html += '<button class="page-btn" onclick="goToPage(1)"' + (currentPage === 1 ? ' disabled' : '') + '>首页</button>';
+            html += '<button class="page-btn" onclick="goToPage(' + (currentPage - 1) + ')"' + (currentPage === 1 ? ' disabled' : '') + '>上一页</button>';
+
+            html += '<div class="page-numbers">' + generatePageNumbers() + '</div>';
+
+            html += '<button class="page-btn" onclick="goToPage(' + (currentPage + 1) + ')"' + (currentPage === totalPages ? ' disabled' : '') + '>下一页</button>';
+            html += '<button class="page-btn" onclick="goToPage(' + totalPages + ')"' + (currentPage === totalPages ? ' disabled' : '') + '>末页</button>';
+
+            html += '</div></div>';
+
+            paginationDiv.innerHTML = html;
+        }
+
+        function generatePageNumbers() {
+            let html = '';
+            const maxVisible = 7;
+
+            if (totalPages <= maxVisible) {
+                for (let i = 1; i <= totalPages; i++) {
+                    html += '<div class="page-number' + (i === currentPage ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</div>';
+                }
+            } else {
+                if (currentPage <= 4) {
+                    for (let i = 1; i <= 5; i++) {
+                        html += '<div class="page-number' + (i === currentPage ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</div>';
+                    }
+                    html += '<div class="page-ellipsis">...</div>';
+                    html += '<div class="page-number" onclick="goToPage(' + totalPages + ')">' + totalPages + '</div>';
+                } else if (currentPage >= totalPages - 3) {
+                    html += '<div class="page-number" onclick="goToPage(1)">1</div>';
+                    html += '<div class="page-ellipsis">...</div>';
+                    for (let i = totalPages - 4; i <= totalPages; i++) {
+                        html += '<div class="page-number' + (i === currentPage ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</div>';
+                    }
+                } else {
+                    html += '<div class="page-number" onclick="goToPage(1)">1</div>';
+                    html += '<div class="page-ellipsis">...</div>';
+                    for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                        html += '<div class="page-number' + (i === currentPage ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</div>';
+                    }
+                    html += '<div class="page-ellipsis">...</div>';
+                    html += '<div class="page-number" onclick="goToPage(' + totalPages + ')">' + totalPages + '</div>';
+                }
+            }
+
+            return html;
+        }
+
+        function goToPage(page) {
+            if (page < 1 || page > totalPages || page === currentPage) return;
+            currentPage = page;
+            displayResults();
+            renderPagination();
+            document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function changePageSize(newSize) {
+            pageSize = parseInt(newSize);
+            totalPages = Math.ceil(currentData.length / pageSize);
+            currentPage = 1;
+            displayResults();
+            renderPagination();
+        }
+
+        // ============ 导出 Excel ============
+
+        function exportToExcel() {
+            if (currentData.length === 0) {
+                alert('没有数据可以导出');
+                return;
+            }
+
+            var exportData = currentData.map(function(row, index) {
+                return {
+                    '序号': index + 1,
+                    '拜访记录编号': row.拜访记录编号 || '-',
+                    '拜访开始时间': row.拜访开始时间 || '-',
+                    '拜访结束时间': row.拜访结束时间 || '-',
+                    '拜访人': row.拜访人 || '-',
+                    '客户名称': row.客户名称 || '-',
+                    '客户编码': row.客户编码 || '-',
+                    '拜访用时（分钟）': row.拜访用时,
+                    '所属片区': row.所属片区 || '-',
+                    '所属大区': row.所属大区 || '-'
+                };
+            });
+
+            // 构建大区统计数据
+            var regionCountMap = {};
+            currentData.forEach(function(row) {
+                var regionName = row.所属大区 || '未知大区';
+                if (!regionCountMap[regionName]) {
+                    regionCountMap[regionName] = 0;
+                }
+                regionCountMap[regionName]++;
+            });
+            var regionList = [];
+            for (var key in regionCountMap) {
+                if (regionCountMap.hasOwnProperty(key)) {
+                    regionList.push({ name: key, count: regionCountMap[key] });
+                }
+            }
+            regionList.sort(function(a, b) { return b.count - a.count; });
+
+            var regionExportData = regionList.map(function(item, index) {
+                var percent = currentData.length > 0 ? ((item.count / currentData.length) * 100).toFixed(2) + '%' : '0.00%';
+                return {
+                    '序号': index + 1,
+                    '所属大区': item.name,
+                    '异常记录数': item.count,
+                    '占比': percent
+                };
+            });
+            // 添加合计行
+            regionExportData.push({
+                '序号': '',
+                '所属大区': '合计',
+                '异常记录数': currentData.length,
+                '占比': '100.00%'
+            });
+
+            var wb = XLSX.utils.book_new();
+
+            // Sheet 1: 查询明细
+            var ws = XLSX.utils.json_to_sheet(exportData);
+            ws['!cols'] = [
+                { wch: 8 },
+                { wch: 20 },
+                { wch: 20 },
+                { wch: 20 },
+                { wch: 15 },
+                { wch: 25 },
+                { wch: 20 },
+                { wch: 15 },
+                { wch: 15 },
+                { wch: 15 }
+            ];
+            XLSX.utils.book_append_sheet(wb, ws, '合并查询结果');
+
+            // Sheet 2: 大区统计
+            var ws2 = XLSX.utils.json_to_sheet(regionExportData);
+            ws2['!cols'] = [
+                { wch: 8 },
+                { wch: 20 },
+                { wch: 15 },
+                { wch: 10 }
+            ];
+            XLSX.utils.book_append_sheet(wb, ws2, '大区异常统计');
+
+            var date = new Date().toISOString().split('T')[0];
+            var filename = 'Visit_Terminal_合并查询_' + date + '.xlsx';
+            XLSX.writeFile(wb, filename);
+
+            alert('导出成功！文件名：' + filename + '，共导出 ' + currentData.length + ' 条记录（含大区统计Sheet）');
+        }
+
+        // ============ 清理数据库 ============
+
+        function showCleanupConfirm() {
+            document.getElementById('cleanupModal').classList.add('active');
+        }
+
+        function hideCleanupConfirm() {
+            document.getElementById('cleanupModal').classList.remove('active');
+        }
+
+        async function executeCleanup() {
+            hideCleanupConfirm();
+
+            var statusDiv = document.getElementById('cleanupStatus');
+            var cleanupBtn = document.getElementById('cleanupBtn');
+
+            cleanupBtn.disabled = true;
+            cleanupBtn.textContent = '正在删除数据库...';
+            statusDiv.innerHTML = '<div class="status-message status-info">正在删除数据库及所有表...</div>';
+
+            try {
+                var response = await fetch(API_URL + '/cleanup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                var result = await response.json();
+
+                if (result.success) {
+                    statusDiv.innerHTML = '<div class="status-message status-success">' + result.message + '</div>';
+                    cleanupBtn.textContent = '已清理完毕';
+                    currentData = [];
+                    document.getElementById('resultContainer').innerHTML = '';
+                    document.getElementById('paginationContainer').style.display = 'none';
+                    document.getElementById('regionSummaryContainer').innerHTML = '';
+                    document.getElementById('exportBtn').style.display = 'none';
+                    document.getElementById('queryStatus').innerHTML = '';
+                } else {
+                    statusDiv.innerHTML = '<div class="status-message status-error">删除失败: ' + result.error + '</div>';
+                    cleanupBtn.disabled = false;
+                    cleanupBtn.textContent = '删除数据库（清理所有数据）';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status-message status-error">删除失败: ' + error.message + '</div>';
+                cleanupBtn.disabled = false;
+                cleanupBtn.textContent = '删除数据库（清理所有数据）';
+            }
+        }
+
+        // ============ 拖拽上传支持 ============
+
+        function setupDragDrop(areaId, fileInputId, handler) {
+            var area = document.getElementById(areaId);
+
+            area.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                area.classList.add('dragover');
+            });
+
+            area.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                area.classList.remove('dragover');
+            });
+
+            area.addEventListener('drop', function(e) {
+                e.preventDefault();
+                area.classList.remove('dragover');
+                var files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    var fileInput = document.getElementById(fileInputId);
+                    fileInput.files = files;
+                    handler({ target: fileInput });
+                }
+            });
+        }
+
+        setupDragDrop('visitUploadArea', 'fileInput', handleFileSelect);
+        setupDragDrop('terminalUploadArea', 'terminalFileInput', handleTerminalFileSelect);
+    </script>
+</body>
+</html>
