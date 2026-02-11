@@ -161,17 +161,6 @@
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
         }
 
-        .btn-danger {
-            background: #ef4444;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #dc2626;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-        }
-
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
@@ -451,101 +440,6 @@
         .page-size-selector select:focus {
             outline: none;
             border-color: #667eea;
-        }
-
-        .join-explain {
-            background: #fffbeb;
-            border-left: 4px solid #f59e0b;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-            font-size: 14px;
-            color: #92400e;
-            line-height: 1.6;
-        }
-
-        .join-explain strong {
-            color: #78350f;
-        }
-
-        .danger-explain {
-            background: #fef2f2;
-            border-left: 4px solid #ef4444;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-            font-size: 14px;
-            color: #991b1b;
-            line-height: 1.6;
-        }
-
-        .danger-explain strong {
-            color: #7f1d1d;
-        }
-
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal-box {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            max-width: 450px;
-            width: 90%;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        }
-
-        .modal-box .modal-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-
-        .modal-box h3 {
-            font-size: 20px;
-            color: #991b1b;
-            margin-bottom: 10px;
-        }
-
-        .modal-box p {
-            font-size: 14px;
-            color: #6b7280;
-            margin-bottom: 25px;
-            line-height: 1.6;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-        }
-
-        .modal-buttons .btn {
-            min-width: 120px;
-            justify-content: center;
-        }
-
-        .btn-secondary {
-            background: #e5e7eb;
-            color: #374151;
-        }
-
-        .btn-secondary:hover {
-            background: #d1d5db;
         }
 
         /* ============ 大区统计样式 ============ */
@@ -1014,39 +908,6 @@
 
                 <div id="paginationContainer" style="display: none;"></div>
             </div>
-
-            <!-- 清理数据库 -->
-            <div class="section">
-                <div class="section-title">
-                    <span>Step 3</span> 清理数据库（使用完毕后执行）
-                </div>
-
-                <div class="danger-explain">
-                    <strong>注意：此操作不可逆！</strong>点击下方按钮将删除整个数据库（包括 Visit、Terminal 表及其所有数据）。
-                    请确认已导出所需数据后再执行清理。服务器通过 Ctrl+C 停止时也会自动删除数据库。
-                </div>
-
-                <div class="btn-group">
-                    <button class="btn btn-danger" id="cleanupBtn" onclick="showCleanupConfirm()">
-                        删除数据库（清理所有数据）
-                    </button>
-                </div>
-
-                <div id="cleanupStatus"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 确认弹窗 -->
-    <div class="modal-overlay" id="cleanupModal">
-        <div class="modal-box">
-            <div class="modal-icon">&#9888;</div>
-            <h3>确认删除数据库？</h3>
-            <p>此操作将永久删除数据库及其中的所有表和数据（Visit、Terminal），且无法恢复。<br><br>请确认已导出所需的查询结果。</p>
-            <div class="modal-buttons">
-                <button class="btn btn-secondary" onclick="hideCleanupConfirm()">取消</button>
-                <button class="btn btn-danger" onclick="executeCleanup()">确认删除</button>
-            </div>
         </div>
     </div>
 
@@ -1062,6 +923,22 @@
         let regionAreaMap = {};
         // 当前展开的大区名称（null 表示全部收起）
         let expandedRegion = null;
+
+        // ============ 心跳机制：保持与服务器的连接活跃 ============
+        // 每 20 秒发送一次心跳，服务器如果 90 秒未收到心跳则自动清理数据库并退出
+        var heartbeatTimer = setInterval(function() {
+            fetch(API_URL + '/heartbeat').catch(function() {});
+        }, 20000);
+
+        // 页面可见性变化时立即发送心跳（防止浏览器后台节流导致心跳中断）
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                fetch(API_URL + '/heartbeat').catch(function() {});
+            }
+        });
+
+        // 页面加载时立即发送第一次心跳
+        fetch(API_URL + '/heartbeat').catch(function() {});
 
         // ============ Visit 文件上传 ============
 
@@ -1769,57 +1646,6 @@
             XLSX.writeFile(wb, filename);
 
             alert('导出成功！文件名：' + filename + '，共导出 ' + currentData.length + ' 条记录（含大区统计、大区-片区明细统计Sheet）');
-        }
-
-        // ============ 清理数据库 ============
-
-        function showCleanupConfirm() {
-            document.getElementById('cleanupModal').classList.add('active');
-        }
-
-        function hideCleanupConfirm() {
-            document.getElementById('cleanupModal').classList.remove('active');
-        }
-
-        async function executeCleanup() {
-            hideCleanupConfirm();
-
-            var statusDiv = document.getElementById('cleanupStatus');
-            var cleanupBtn = document.getElementById('cleanupBtn');
-
-            cleanupBtn.disabled = true;
-            cleanupBtn.textContent = '正在删除数据库...';
-            statusDiv.innerHTML = '<div class="status-message status-info">正在删除数据库及所有表...</div>';
-
-            try {
-                var response = await fetch(API_URL + '/cleanup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                var result = await response.json();
-
-                if (result.success) {
-                    statusDiv.innerHTML = '<div class="status-message status-success">' + result.message + '</div>';
-                    cleanupBtn.textContent = '已清理完毕';
-                    currentData = [];
-                    regionAreaMap = {};
-                    expandedRegion = null;
-                    document.getElementById('resultContainer').innerHTML = '';
-                    document.getElementById('paginationContainer').style.display = 'none';
-                    document.getElementById('regionSummaryContainer').innerHTML = '';
-                    document.getElementById('exportBtn').style.display = 'none';
-                    document.getElementById('queryStatus').innerHTML = '';
-                } else {
-                    statusDiv.innerHTML = '<div class="status-message status-error">删除失败: ' + result.error + '</div>';
-                    cleanupBtn.disabled = false;
-                    cleanupBtn.textContent = '删除数据库（清理所有数据）';
-                }
-            } catch (error) {
-                statusDiv.innerHTML = '<div class="status-message status-error">删除失败: ' + error.message + '</div>';
-                cleanupBtn.disabled = false;
-                cleanupBtn.textContent = '删除数据库（清理所有数据）';
-            }
         }
 
         // ============ 拖拽上传支持 ============

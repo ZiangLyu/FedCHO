@@ -18,6 +18,13 @@ const baseDb = mysql.createConnection({
     password: '998699'
 });
 
+// ============ 心跳与自动清理机制 ============
+// 前端每 20 秒发送一次心跳；如果 90 秒内未收到任何心跳，认为用户已离开，自动清理数据库并退出进程
+let lastHeartbeat = Date.now();
+let cleanedUp = false;
+const HEARTBEAT_TIMEOUT = 90000; // 90 秒无心跳则自动清理
+const HEARTBEAT_CHECK_INTERVAL = 15000; // 每 15 秒检查一次
+
 // 初始化数据库：创建 Visit + Terminal 表
 async function initDatabase() {
     try {
@@ -88,8 +95,15 @@ async function initDatabase() {
     }
 }
 
+// ============ 心跳端点 ============
+app.get('/heartbeat', (req, res) => {
+    lastHeartbeat = Date.now();
+    res.json({ success: true, timestamp: lastHeartbeat });
+});
+
 // 上传 Visit
 app.post('/uploadVisit', (req, res) => {
+    lastHeartbeat = Date.now(); // 任何请求都视为活跃
     const db = app.get('db');
     const records = req.body.records;
 
@@ -120,6 +134,7 @@ app.post('/uploadVisit', (req, res) => {
 
 // 上传 Terminal（使用 INSERT IGNORE 避免重复客户编码报错）
 app.post('/uploadTerminal', (req, res) => {
+    lastHeartbeat = Date.now(); // 任何请求都视为活跃
     const db = app.get('db');
     const records = req.body.records;
 
@@ -146,6 +161,7 @@ app.post('/uploadTerminal', (req, res) => {
 
 // 查询合并后的数据（LEFT JOIN Visit + Terminal）-- 使用 DISTINCT 去重
 app.get('/getMinutes', (req, res) => {
+    lastHeartbeat = Date.now(); // 任何请求都视为活跃
     const db = app.get('db');
     let {
         maxMinutes = 5,
@@ -227,6 +243,7 @@ app.get('/getMinutes', (req, res) => {
 
 // 获取所有片区列表（用于前端下拉选择）
 app.get('/getAreas', (req, res) => {
+    lastHeartbeat = Date.now();
     const db = app.get('db');
     const sql = 'SELECT DISTINCT 所属片区 FROM Terminal WHERE 所属片区 IS NOT NULL AND 所属片区 != "" ORDER BY 所属片区';
     db.query(sql, (err, results) => {
@@ -240,6 +257,7 @@ app.get('/getAreas', (req, res) => {
 
 // 获取所有大区列表（用于前端下拉选择）
 app.get('/getRegions', (req, res) => {
+    lastHeartbeat = Date.now();
     const db = app.get('db');
     const sql = 'SELECT DISTINCT 所属大区 FROM Terminal WHERE 所属大区 IS NOT NULL AND 所属大区 != "" ORDER BY 所属大区';
     db.query(sql, (err, results) => {
@@ -263,6 +281,9 @@ app.post('/cleanup', async (req, res) => {
 
 // 删除数据库的核心函数
 async function dropDatabase() {
+    if (cleanedUp) return; // 防止重复清理
+    cleanedUp = true;
+
     const db = app.get('db');
     if (db) {
         try { db.end(); } catch (e) { /* 忽略 */ }
@@ -289,13 +310,31 @@ async function dropDatabase() {
     console.log(`数据库已删除: ${dbName}`);
 }
 
-// 进程退出时自动清理数据库
-function setupProcessCleanup() {
-    let cleaning = false;
+// ============ 心跳超时自动清理 ============
+function setupHeartbeatCheck() {
+    const checkTimer = setInterval(async () => {
+        const elapsed = Date.now() - lastHeartbeat;
+        if (elapsed > HEARTBEAT_TIMEOUT && !cleanedUp) {
+            console.log(`\n心跳超时（${Math.round(elapsed / 1000)} 秒无活动），用户已离开，正在自动清理数据库...`);
+            clearInterval(checkTimer);
+            try {
+                await dropDatabase();
+                console.log('自动清理完成，服务器即将退出');
+            } catch (error) {
+                console.error('自动清理时出错:', error.message);
+            }
+            process.exit(0);
+        }
+    }, HEARTBEAT_CHECK_INTERVAL);
+}
 
+// 进程退出时自动清理数据库（Ctrl+C 或 kill 信号）
+function setupProcessCleanup() {
     async function handleExit(signal) {
-        if (cleaning) return;
-        cleaning = true;
+        if (cleanedUp) {
+            process.exit(0);
+            return;
+        }
         console.log(`\n收到 ${signal} 信号，正在清理数据库...`);
         try {
             await dropDatabase();
@@ -312,8 +351,10 @@ function setupProcessCleanup() {
 
 initDatabase().then(() => {
     setupProcessCleanup();
+    setupHeartbeatCheck();
     app.listen(port, () => {
         console.log(`服务器运行在 http://localhost:${port}`);
         console.log(`当前数据库: ${dbName}`);
+        console.log(`心跳超时时间: ${HEARTBEAT_TIMEOUT / 1000} 秒（用户关闭页面后自动清理数据库并退出）`);
     });
 });
