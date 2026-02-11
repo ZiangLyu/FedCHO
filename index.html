@@ -261,8 +261,8 @@
             border-radius: 12px;
             font-size: 12px;
             font-weight: 600;
-            background: #d1fae5;
-            color: #065f46;
+            background: #fee2e2;
+            color: #991b1b;
         }
 
         .instructions {
@@ -319,6 +319,17 @@
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        .filter-section-label {
+            grid-column: 1 / -1;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            padding: 8px 12px;
+            background: #eef2ff;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
         }
 
         .pagination-container {
@@ -797,6 +808,7 @@
     <div class="container">
         <div class="header">
             <h1>合并查询系统</h1>
+            <p>筛选拜访开始/结束时间不在正常时间段内的异常记录</p>
         </div>
 
         <div class="content">
@@ -815,7 +827,7 @@
                             <ul>
                                 <li>支持 Excel (.xlsx, .xls) 和 CSV 文件</li>
                                 <li>必须包含列：拜访记录编号、拜访开始时间、拜访结束时间、拜访人、客户名称、客户编码、拜访用时</li>
-                                <li>拜访用时必须为数字（分钟）</li>
+                                <li>拜访开始时间/结束时间格式：YYYY/MM/DD HH:mm</li>
                             </ul>
                         </div>
                         <div class="upload-area" id="visitUploadArea" onclick="document.getElementById('fileInput').click()">
@@ -856,10 +868,24 @@
                 </div>
 
                 <div class="filter-form">
+                    <div class="filter-section-label">异常时间段设置（拜访开始/结束时间早于"最早时间"或晚于"最晚时间"的记录将被筛选出来）</div>
                     <div class="filter-item">
-                        <label for="maxMinutes">最大拜访用时（分钟）</label>
-                        <input type="number" id="maxMinutes" value="5" min="0" step="1">
+                        <label for="earliestStartTime">最早开始时间</label>
+                        <input type="time" id="earliestStartTime" value="07:00">
                     </div>
+                    <div class="filter-item">
+                        <label for="latestStartTime">最晚开始时间</label>
+                        <input type="time" id="latestStartTime" value="21:30">
+                    </div>
+                    <div class="filter-item">
+                        <label for="earliestEndTime">最早结束时间</label>
+                        <input type="time" id="earliestEndTime" value="07:00">
+                    </div>
+                    <div class="filter-item">
+                        <label for="latestEndTime">最晚结束时间</label>
+                        <input type="time" id="latestEndTime" value="21:30">
+                    </div>
+                    <div class="filter-section-label">其他筛选条件</div>
                     <div class="filter-item">
                         <label for="visitor">拜访人</label>
                         <input type="text" id="visitor">
@@ -913,7 +939,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
-        const API_URL = 'http://localhost:3000';
+        const API_URL = 'http://localhost:8011/api/audit_visit/search_time';
         let currentData = [];
         let currentPage = 1;
         let pageSize = 1000;
@@ -925,20 +951,26 @@
         let expandedRegion = null;
 
         // ============ 心跳机制：保持与服务器的连接活跃 ============
-        // 每 20 秒发送一次心跳，服务器如果 90 秒未收到心跳则自动清理数据库并退出
         var heartbeatTimer = setInterval(function() {
             fetch(API_URL + '/heartbeat').catch(function() {});
         }, 20000);
 
-        // 页面可见性变化时立即发送心跳（防止浏览器后台节流导致心跳中断）
         document.addEventListener('visibilitychange', function() {
             if (!document.hidden) {
                 fetch(API_URL + '/heartbeat').catch(function() {});
             }
         });
 
-        // 页面加载时立即发送第一次心跳
         fetch(API_URL + '/heartbeat').catch(function() {});
+
+        // ============ 获取当前筛选条件描述 ============
+        function getFilterDesc() {
+            var es = document.getElementById('earliestStartTime').value || '07:00';
+            var ls = document.getElementById('latestStartTime').value || '21:30';
+            var ee = document.getElementById('earliestEndTime').value || '07:00';
+            var le = document.getElementById('latestEndTime').value || '21:30';
+            return '开始时间早于 ' + es + ' 或晚于 ' + ls + '，或结束时间早于 ' + ee + ' 或晚于 ' + le;
+        }
 
         // ============ Visit 文件上传 ============
 
@@ -1079,7 +1111,10 @@
         // ============ 查询 ============
 
         async function queryRecords() {
-            const maxMinutes = parseInt(document.getElementById('maxMinutes').value) || 5;
+            const earliestStartTime = document.getElementById('earliestStartTime').value || '07:00';
+            const latestStartTime = document.getElementById('latestStartTime').value || '21:30';
+            const earliestEndTime = document.getElementById('earliestEndTime').value || '07:00';
+            const latestEndTime = document.getElementById('latestEndTime').value || '21:30';
             const visitor = document.getElementById('visitor').value.trim();
             const customerName = document.getElementById('customerName').value.trim();
             const customerCode = document.getElementById('customerCode').value.trim();
@@ -1089,7 +1124,10 @@
             const endDate = document.getElementById('endDate').value;
 
             const params = new URLSearchParams({
-                maxMinutes,
+                earliestStartTime: earliestStartTime + ':00',
+                latestStartTime: latestStartTime + ':00',
+                earliestEndTime: earliestEndTime + ':00',
+                latestEndTime: latestEndTime + ':00',
                 visitor,
                 customerName,
                 customerCode,
@@ -1104,18 +1142,17 @@
             const paginationDiv = document.getElementById('paginationContainer');
             const regionSummaryDiv = document.getElementById('regionSummaryContainer');
 
-            statusDiv.innerHTML = '<div class="status-message status-info">正在查询合并数据（Visit LEFT JOIN Terminal）...</div>';
+            statusDiv.innerHTML = '<div class="status-message status-info">正在查询不在正常时间段内的异常记录（Visit LEFT JOIN Terminal）...</div>';
             resultDiv.innerHTML = '';
             paginationDiv.style.display = 'none';
             regionSummaryDiv.innerHTML = '';
             document.getElementById('exportBtn').style.display = 'none';
 
-            // 重置展开状态
             expandedRegion = null;
             regionAreaMap = {};
 
             try {
-                const response = await fetch(API_URL + '/getMinutes?' + params.toString());
+                const response = await fetch(API_URL + '/getAbnormalTime?' + params.toString());
                 const result = await response.json();
 
                 if (result.success) {
@@ -1127,7 +1164,7 @@
                         resultDiv.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><h3>暂无符合条件的记录</h3><p>请尝试调整查询条件</p></div>';
                     } else {
                         totalPages = Math.ceil(currentData.length / pageSize);
-                        statusDiv.innerHTML = '<div class="status-message status-success">查询成功！找到 ' + currentData.length + ' 条记录（已去重），共 ' + totalPages + ' 页</div>';
+                        statusDiv.innerHTML = '<div class="status-message status-success">查询成功！找到 ' + currentData.length + ' 条异常时间记录（已去重），共 ' + totalPages + ' 页</div>';
                         buildRegionAreaMap();
                         renderRegionSummary();
                         displayResults();
@@ -1147,11 +1184,9 @@
 
         function buildRegionAreaMap() {
             regionAreaMap = {};
-
             currentData.forEach(function(row) {
                 var regionName = row.所属大区 || '未知大区';
                 var areaName = row.所属片区 || '未知片区';
-
                 if (!regionAreaMap[regionName]) {
                     regionAreaMap[regionName] = {};
                 }
@@ -1166,20 +1201,15 @@
 
         function renderRegionSummary() {
             var regionSummaryDiv = document.getElementById('regionSummaryContainer');
-
-            // 统计每个大区的异常记录数
             var regionCountMap = {};
             var totalCount = currentData.length;
 
             currentData.forEach(function(row) {
                 var regionName = row.所属大区 || '未知大区';
-                if (!regionCountMap[regionName]) {
-                    regionCountMap[regionName] = 0;
-                }
+                if (!regionCountMap[regionName]) { regionCountMap[regionName] = 0; }
                 regionCountMap[regionName]++;
             });
 
-            // 将统计结果转为数组并按数量降序排列
             var regionList = [];
             for (var key in regionCountMap) {
                 if (regionCountMap.hasOwnProperty(key)) {
@@ -1188,16 +1218,14 @@
             }
             regionList.sort(function(a, b) { return b.count - a.count; });
 
-            // 构建 HTML
             var html = '<div class="region-summary">';
             html += '<div class="region-summary-title">各大区异常情况统计</div>';
             html += '<div class="region-summary-desc">';
             html += '以下统计基于当前查询条件筛选出的结果，展示每个大区在该查询条件下的异常拜访记录数量。';
-            html += '异常标准：拜访用时 &le; ' + (parseInt(document.getElementById('maxMinutes').value) || 5) + ' 分钟的记录。';
+            html += '异常标准：' + getFilterDesc() + '。';
             html += '<br><strong>点击大区卡片可查看该大区下各片区的异常情况明细。</strong>';
             html += '</div>';
 
-            // 卡片展示
             html += '<div class="region-cards">';
             regionList.forEach(function(item) {
                 var isUnknown = (item.name === '未知大区');
@@ -1212,12 +1240,10 @@
             });
             html += '</div>';
 
-            // 片区展开面板（放在卡片下方）
             html += '<div class="area-detail-panel' + (expandedRegion ? ' open' : '') + '" id="areaDetailPanel">';
             html += '<div id="areaDetailContent"></div>';
             html += '</div>';
 
-            // 汇总条
             html += '<div class="region-total-bar">';
             html += '<strong>异常记录总计：</strong>';
             html += '<span>' + totalCount + '</span>';
@@ -1225,78 +1251,48 @@
             html += '<span style="color: #6b7280; font-size: 14px; font-weight: normal; margin-left: 15px;">（覆盖 ' + regionList.length + ' 个大区）</span>';
             html += '</div>';
 
-            // 明细表格
             html += '<div class="table-container" style="margin-top: 15px;">';
             html += '<table class="region-summary-table">';
-            html += '<thead><tr>';
-            html += '<th>序号</th>';
-            html += '<th>所属大区</th>';
-            html += '<th>异常记录数</th>';
-            html += '<th>占比</th>';
-            html += '</tr></thead>';
+            html += '<thead><tr><th>序号</th><th>所属大区</th><th>异常记录数</th><th>占比</th></tr></thead>';
             html += '<tbody>';
-
             regionList.forEach(function(item, index) {
                 var percent = totalCount > 0 ? ((item.count / totalCount) * 100).toFixed(2) : '0.00';
-                html += '<tr>';
-                html += '<td>' + (index + 1) + '</td>';
-                html += '<td>' + item.name + '</td>';
-                html += '<td class="count-cell">' + item.count + '</td>';
-                html += '<td class="percent-cell">' + percent + '%</td>';
-                html += '</tr>';
+                html += '<tr><td>' + (index + 1) + '</td><td>' + item.name + '</td><td class="count-cell">' + item.count + '</td><td class="percent-cell">' + percent + '%</td></tr>';
             });
-
             html += '</tbody></table></div>';
             html += '</div>';
 
             regionSummaryDiv.innerHTML = html;
-
-            // 如果有展开的大区，渲染其片区内容
-            if (expandedRegion) {
-                renderAreaDetail(expandedRegion);
-            }
+            if (expandedRegion) { renderAreaDetail(expandedRegion); }
         }
 
         // ============ 切换大区片区展开 ============
 
         function toggleRegionDetail(regionName) {
             if (expandedRegion === regionName) {
-                // 再次点击同一大区，收起
                 expandedRegion = null;
                 var panel = document.getElementById('areaDetailPanel');
-                if (panel) {
-                    panel.classList.remove('open');
-                }
-                // 更新卡片的 active 状态和箭头
+                if (panel) { panel.classList.remove('open'); }
                 updateCardStates();
             } else {
-                // 点击不同大区，展开（或切换）
                 expandedRegion = regionName;
                 renderAreaDetail(regionName);
                 var panel = document.getElementById('areaDetailPanel');
-                if (panel) {
-                    panel.classList.add('open');
-                }
-                // 更新卡片的 active 状态和箭头
+                if (panel) { panel.classList.add('open'); }
                 updateCardStates();
-                // 滚动到面板位置
                 setTimeout(function() {
                     var panelEl = document.getElementById('areaDetailPanel');
-                    if (panelEl) {
-                        panelEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
+                    if (panelEl) { panelEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
                 }, 100);
             }
         }
 
-        // 更新所有大区卡片的 active 状态和箭头提示文字
         function updateCardStates() {
             var cards = document.querySelectorAll('.region-card');
             cards.forEach(function(card) {
                 var nameEl = card.querySelector('.region-card-name');
                 var hintEl = card.querySelector('.region-card-hint');
                 if (!nameEl || !hintEl) return;
-
                 var cardName = nameEl.textContent;
                 if (cardName === expandedRegion) {
                     card.classList.add('active');
@@ -1313,76 +1309,36 @@
         function renderAreaDetail(regionName) {
             var contentDiv = document.getElementById('areaDetailContent');
             if (!contentDiv) return;
-
             var areaMap = regionAreaMap[regionName];
-            if (!areaMap) {
-                contentDiv.innerHTML = '<p style="color: #6b7280;">该大区下无片区数据。</p>';
-                return;
-            }
+            if (!areaMap) { contentDiv.innerHTML = '<p style="color: #6b7280;">该大区下无片区数据。</p>'; return; }
 
-            // 构建片区列表并排序
             var areaList = [];
             var regionTotal = 0;
             for (var key in areaMap) {
-                if (areaMap.hasOwnProperty(key)) {
-                    areaList.push({ name: key, count: areaMap[key] });
-                    regionTotal += areaMap[key];
-                }
+                if (areaMap.hasOwnProperty(key)) { areaList.push({ name: key, count: areaMap[key] }); regionTotal += areaMap[key]; }
             }
             areaList.sort(function(a, b) { return b.count - a.count; });
 
-            var html = '';
-
-            // 头部
-            html += '<div class="area-detail-header">';
+            var html = '<div class="area-detail-header">';
             html += '<div class="area-detail-title"><span>' + regionName + '</span> - 各片区异常情况明细（共 ' + areaList.length + ' 个片区）</div>';
             html += '<button class="area-detail-close" onclick="toggleRegionDetail(\'' + regionName.replace(/'/g, "\\'") + '\')" title="收起">&times;</button>';
             html += '</div>';
 
-            // 片区卡片
             html += '<div class="area-cards">';
             areaList.forEach(function(item) {
                 var percent = regionTotal > 0 ? ((item.count / regionTotal) * 100).toFixed(1) : '0.0';
-                html += '<div class="area-card">';
-                html += '<div class="area-card-name">' + item.name + '</div>';
-                html += '<div class="area-card-count">' + item.count + '</div>';
-                html += '<div class="area-card-unit">条异常记录</div>';
-                html += '<div class="area-card-percent">占本大区 ' + percent + '%</div>';
-                html += '</div>';
+                html += '<div class="area-card"><div class="area-card-name">' + item.name + '</div><div class="area-card-count">' + item.count + '</div><div class="area-card-unit">条异常记录</div><div class="area-card-percent">占本大区 ' + percent + '%</div></div>';
             });
             html += '</div>';
 
-            // 片区明细表格
-            html += '<div class="area-detail-table-wrap">';
-            html += '<table class="area-detail-table">';
-            html += '<thead><tr>';
-            html += '<th>序号</th>';
-            html += '<th>所属片区</th>';
-            html += '<th>异常记录数</th>';
-            html += '<th>占本大区比例</th>';
-            html += '</tr></thead>';
-            html += '<tbody>';
-
+            html += '<div class="area-detail-table-wrap"><table class="area-detail-table"><thead><tr><th>序号</th><th>所属片区</th><th>异常记录数</th><th>占本大区比例</th></tr></thead><tbody>';
             areaList.forEach(function(item, index) {
                 var percent = regionTotal > 0 ? ((item.count / regionTotal) * 100).toFixed(2) : '0.00';
-                html += '<tr>';
-                html += '<td>' + (index + 1) + '</td>';
-                html += '<td>' + item.name + '</td>';
-                html += '<td class="area-count-cell">' + item.count + '</td>';
-                html += '<td class="area-percent-cell">' + percent + '%</td>';
-                html += '</tr>';
+                html += '<tr><td>' + (index + 1) + '</td><td>' + item.name + '</td><td class="area-count-cell">' + item.count + '</td><td class="area-percent-cell">' + percent + '%</td></tr>';
             });
-
             html += '</tbody></table></div>';
 
-            // 汇总
-            html += '<div class="area-detail-total">';
-            html += '<strong>' + regionName + ' 异常合计：</strong>';
-            html += '<span>' + regionTotal + '</span>';
-            html += '<strong style="margin-left: 3px;">条</strong>';
-            html += '<span style="color: #6b7280; font-size: 13px; font-weight: normal; margin-left: 10px;">（含 ' + areaList.length + ' 个片区）</span>';
-            html += '</div>';
-
+            html += '<div class="area-detail-total"><strong>' + regionName + ' 异常合计：</strong><span>' + regionTotal + '</span><strong style="margin-left: 3px;">条</strong><span style="color: #6b7280; font-size: 13px; font-weight: normal; margin-left: 10px;">（含 ' + areaList.length + ' 个片区）</span></div>';
             contentDiv.innerHTML = html;
         }
 
@@ -1390,7 +1346,6 @@
 
         function displayResults() {
             const resultDiv = document.getElementById('resultContainer');
-
             const startIndex = (currentPage - 1) * pageSize;
             const endIndex = Math.min(startIndex + pageSize, currentData.length);
             const pageData = currentData.slice(startIndex, endIndex);
@@ -1418,7 +1373,7 @@
                 tableHTML += '<td>' + (row.拜访人 || '-') + '</td>';
                 tableHTML += '<td>' + (row.客户名称 || '-') + '</td>';
                 tableHTML += '<td>' + (row.客户编码 || '-') + '</td>';
-                tableHTML += '<td><span class="badge">' + row.拜访用时 + ' 分钟</span></td>';
+                tableHTML += '<td><span class="badge">' + (row.拜访用时 != null ? row.拜访用时 + ' 分钟' : '-') + '</span></td>';
                 tableHTML += '<td>' + (row.所属片区 || '-') + '</td>';
                 tableHTML += '<td>' + (row.所属大区 || '-') + '</td>';
                 tableHTML += '</tr>';
@@ -1432,71 +1387,48 @@
 
         function renderPagination() {
             const paginationDiv = document.getElementById('paginationContainer');
-
             const startIndex = (currentPage - 1) * pageSize + 1;
             const endIndex = Math.min(currentPage * pageSize, currentData.length);
 
             let html = '<div class="pagination-container">';
-            html += '<div class="pagination-info">';
-            html += '显示 <strong>' + startIndex + '</strong> - <strong>' + endIndex + '</strong> 条，';
-            html += '共 <strong>' + currentData.length + '</strong> 条记录';
-            html += '</div>';
-
+            html += '<div class="pagination-info">显示 <strong>' + startIndex + '</strong> - <strong>' + endIndex + '</strong> 条，共 <strong>' + currentData.length + '</strong> 条记录</div>';
             html += '<div class="pagination-controls">';
-
-            html += '<div class="page-size-selector">';
-            html += '<label>每页显示：</label>';
-            html += '<select onchange="changePageSize(this.value)">';
+            html += '<div class="page-size-selector"><label>每页显示：</label><select onchange="changePageSize(this.value)">';
             [100, 500, 1000, 2000].forEach(function(size) {
                 html += '<option value="' + size + '"' + (pageSize === size ? ' selected' : '') + '>' + size + '</option>';
             });
             html += '</select></div>';
-
             html += '<button class="page-btn" onclick="goToPage(1)"' + (currentPage === 1 ? ' disabled' : '') + '>首页</button>';
             html += '<button class="page-btn" onclick="goToPage(' + (currentPage - 1) + ')"' + (currentPage === 1 ? ' disabled' : '') + '>上一页</button>';
-
             html += '<div class="page-numbers">' + generatePageNumbers() + '</div>';
-
             html += '<button class="page-btn" onclick="goToPage(' + (currentPage + 1) + ')"' + (currentPage === totalPages ? ' disabled' : '') + '>下一页</button>';
             html += '<button class="page-btn" onclick="goToPage(' + totalPages + ')"' + (currentPage === totalPages ? ' disabled' : '') + '>末页</button>';
-
             html += '</div></div>';
-
             paginationDiv.innerHTML = html;
         }
 
         function generatePageNumbers() {
             let html = '';
             const maxVisible = 7;
-
             if (totalPages <= maxVisible) {
                 for (let i = 1; i <= totalPages; i++) {
                     html += '<div class="page-number' + (i === currentPage ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</div>';
                 }
             } else {
                 if (currentPage <= 4) {
-                    for (let i = 1; i <= 5; i++) {
-                        html += '<div class="page-number' + (i === currentPage ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</div>';
-                    }
+                    for (let i = 1; i <= 5; i++) { html += '<div class="page-number' + (i === currentPage ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</div>'; }
                     html += '<div class="page-ellipsis">...</div>';
                     html += '<div class="page-number" onclick="goToPage(' + totalPages + ')">' + totalPages + '</div>';
                 } else if (currentPage >= totalPages - 3) {
-                    html += '<div class="page-number" onclick="goToPage(1)">1</div>';
-                    html += '<div class="page-ellipsis">...</div>';
-                    for (let i = totalPages - 4; i <= totalPages; i++) {
-                        html += '<div class="page-number' + (i === currentPage ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</div>';
-                    }
+                    html += '<div class="page-number" onclick="goToPage(1)">1</div><div class="page-ellipsis">...</div>';
+                    for (let i = totalPages - 4; i <= totalPages; i++) { html += '<div class="page-number' + (i === currentPage ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</div>'; }
                 } else {
-                    html += '<div class="page-number" onclick="goToPage(1)">1</div>';
-                    html += '<div class="page-ellipsis">...</div>';
-                    for (let i = currentPage - 1; i <= currentPage + 1; i++) {
-                        html += '<div class="page-number' + (i === currentPage ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</div>';
-                    }
+                    html += '<div class="page-number" onclick="goToPage(1)">1</div><div class="page-ellipsis">...</div>';
+                    for (let i = currentPage - 1; i <= currentPage + 1; i++) { html += '<div class="page-number' + (i === currentPage ? ' active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</div>'; }
                     html += '<div class="page-ellipsis">...</div>';
                     html += '<div class="page-number" onclick="goToPage(' + totalPages + ')">' + totalPages + '</div>';
                 }
             }
-
             return html;
         }
 
@@ -1519,10 +1451,7 @@
         // ============ 导出 Excel ============
 
         function exportToExcel() {
-            if (currentData.length === 0) {
-                alert('没有数据可以导出');
-                return;
-            }
+            if (currentData.length === 0) { alert('没有数据可以导出'); return; }
 
             var exportData = currentData.map(function(row, index) {
                 return {
@@ -1533,118 +1462,60 @@
                     '拜访人': row.拜访人 || '-',
                     '客户名称': row.客户名称 || '-',
                     '客户编码': row.客户编码 || '-',
-                    '拜访用时（分钟）': row.拜访用时,
+                    '拜访用时（分钟）': row.拜访用时 != null ? row.拜访用时 : '-',
                     '所属片区': row.所属片区 || '-',
                     '所属大区': row.所属大区 || '-'
                 };
             });
 
-            // 构建大区统计数据
             var regionCountMap = {};
             currentData.forEach(function(row) {
                 var regionName = row.所属大区 || '未知大区';
-                if (!regionCountMap[regionName]) {
-                    regionCountMap[regionName] = 0;
-                }
+                if (!regionCountMap[regionName]) { regionCountMap[regionName] = 0; }
                 regionCountMap[regionName]++;
             });
             var regionList = [];
-            for (var key in regionCountMap) {
-                if (regionCountMap.hasOwnProperty(key)) {
-                    regionList.push({ name: key, count: regionCountMap[key] });
-                }
-            }
+            for (var key in regionCountMap) { if (regionCountMap.hasOwnProperty(key)) { regionList.push({ name: key, count: regionCountMap[key] }); } }
             regionList.sort(function(a, b) { return b.count - a.count; });
 
             var regionExportData = regionList.map(function(item, index) {
                 var percent = currentData.length > 0 ? ((item.count / currentData.length) * 100).toFixed(2) + '%' : '0.00%';
-                return {
-                    '序号': index + 1,
-                    '所属大区': item.name,
-                    '异常记录数': item.count,
-                    '占比': percent
-                };
+                return { '序号': index + 1, '所属大区': item.name, '异常记录数': item.count, '占比': percent };
             });
-            regionExportData.push({
-                '序号': '',
-                '所属大区': '合计',
-                '异常记录数': currentData.length,
-                '占比': '100.00%'
-            });
+            regionExportData.push({ '序号': '', '所属大区': '合计', '异常记录数': currentData.length, '占比': '100.00%' });
 
-            // 构建大区->片区明细统计数据
             var areaDetailExportData = [];
             var seq = 1;
             regionList.forEach(function(regionItem) {
                 var areaMap = regionAreaMap[regionItem.name];
                 if (!areaMap) return;
-
                 var areaList = [];
-                for (var aKey in areaMap) {
-                    if (areaMap.hasOwnProperty(aKey)) {
-                        areaList.push({ name: aKey, count: areaMap[aKey] });
-                    }
-                }
+                for (var aKey in areaMap) { if (areaMap.hasOwnProperty(aKey)) { areaList.push({ name: aKey, count: areaMap[aKey] }); } }
                 areaList.sort(function(a, b) { return b.count - a.count; });
-
                 areaList.forEach(function(areaItem) {
                     var percentInRegion = regionItem.count > 0 ? ((areaItem.count / regionItem.count) * 100).toFixed(2) + '%' : '0.00%';
                     var percentInTotal = currentData.length > 0 ? ((areaItem.count / currentData.length) * 100).toFixed(2) + '%' : '0.00%';
-                    areaDetailExportData.push({
-                        '序号': seq++,
-                        '所属大区': regionItem.name,
-                        '所属片区': areaItem.name,
-                        '异常记录数': areaItem.count,
-                        '占本大区比例': percentInRegion,
-                        '占总体比例': percentInTotal
-                    });
+                    areaDetailExportData.push({ '序号': seq++, '所属大区': regionItem.name, '所属片区': areaItem.name, '异常记录数': areaItem.count, '占本大区比例': percentInRegion, '占总体比例': percentInTotal });
                 });
             });
 
             var wb = XLSX.utils.book_new();
 
-            // Sheet 1: 查询明细
             var ws = XLSX.utils.json_to_sheet(exportData);
-            ws['!cols'] = [
-                { wch: 8 },
-                { wch: 20 },
-                { wch: 20 },
-                { wch: 20 },
-                { wch: 15 },
-                { wch: 25 },
-                { wch: 20 },
-                { wch: 15 },
-                { wch: 15 },
-                { wch: 15 }
-            ];
+            ws['!cols'] = [{ wch: 8 },{ wch: 20 },{ wch: 20 },{ wch: 20 },{ wch: 15 },{ wch: 25 },{ wch: 20 },{ wch: 15 },{ wch: 15 },{ wch: 15 }];
             XLSX.utils.book_append_sheet(wb, ws, '合并查询结果');
 
-            // Sheet 2: 大区统计
             var ws2 = XLSX.utils.json_to_sheet(regionExportData);
-            ws2['!cols'] = [
-                { wch: 8 },
-                { wch: 20 },
-                { wch: 15 },
-                { wch: 10 }
-            ];
+            ws2['!cols'] = [{ wch: 8 },{ wch: 20 },{ wch: 15 },{ wch: 10 }];
             XLSX.utils.book_append_sheet(wb, ws2, '大区异常统计');
 
-            // Sheet 3: 大区-片区明细统计
             var ws3 = XLSX.utils.json_to_sheet(areaDetailExportData);
-            ws3['!cols'] = [
-                { wch: 8 },
-                { wch: 20 },
-                { wch: 20 },
-                { wch: 15 },
-                { wch: 15 },
-                { wch: 12 }
-            ];
+            ws3['!cols'] = [{ wch: 8 },{ wch: 20 },{ wch: 20 },{ wch: 15 },{ wch: 15 },{ wch: 12 }];
             XLSX.utils.book_append_sheet(wb, ws3, '大区-片区明细统计');
 
             var date = new Date().toISOString().split('T')[0];
-            var filename = 'Visit_Terminal_合并查询_' + date + '.xlsx';
+            var filename = 'Visit_Terminal_异常时间查询_' + date + '.xlsx';
             XLSX.writeFile(wb, filename);
-
             alert('导出成功！文件名：' + filename + '，共导出 ' + currentData.length + ' 条记录（含大区统计、大区-片区明细统计Sheet）');
         }
 
@@ -1652,17 +1523,8 @@
 
         function setupDragDrop(areaId, fileInputId, handler) {
             var area = document.getElementById(areaId);
-
-            area.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                area.classList.add('dragover');
-            });
-
-            area.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                area.classList.remove('dragover');
-            });
-
+            area.addEventListener('dragover', function(e) { e.preventDefault(); area.classList.add('dragover'); });
+            area.addEventListener('dragleave', function(e) { e.preventDefault(); area.classList.remove('dragover'); });
             area.addEventListener('drop', function(e) {
                 e.preventDefault();
                 area.classList.remove('dragover');

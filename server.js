@@ -4,7 +4,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 
 const app = express();
-const port = 3000;
+const port = 8011;
 
 app.use(bodyParser.json({ limit: '10000mb' }));
 app.use(bodyParser.urlencoded({ limit: '10000mb', extended: true }));
@@ -15,26 +15,24 @@ const dbName = `terminal_${Date.now()}`;
 const baseDb = mysql.createConnection({
     host: 'localhost',
     user: 'root',
-    password: '998699'
+    password: 'Guoyanjun123.'
 });
 
-// ============ 心跳与自动清理机制 ============
-// 前端每 20 秒发送一次心跳；如果 90 秒内未收到任何心跳，认为用户已离开，自动清理数据库并退出进程
 let lastHeartbeat = Date.now();
 let cleanedUp = false;
-const HEARTBEAT_TIMEOUT = 90000; // 90 秒无心跳则自动清理
-const HEARTBEAT_CHECK_INTERVAL = 15000; // 每 15 秒检查一次
+const HEARTBEAT_TIMEOUT = 90000;
+const HEARTBEAT_CHECK_INTERVAL = 15000;
 
-// 初始化数据库：创建 Visit + Terminal 表
+// Initialize database and create Visit and Terminal tables
 async function initDatabase() {
     try {
         await new Promise((resolve, reject) => {
-            baseDb.connect(err => err ? reject(`基础连接失败: ${err.message}`) : resolve());
+            baseDb.connect(err => err ? reject(`Base connection failed: ${err.message}`) : resolve());
         });
 
         await new Promise((resolve, reject) => {
             baseDb.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``, err =>
-                err ? reject(`创建数据库失败: ${err.message}`) : resolve()
+                err ? reject(`Failed to create database: ${err.message}`) : resolve()
             );
         });
 
@@ -43,15 +41,15 @@ async function initDatabase() {
         const db = mysql.createConnection({
             host: 'localhost',
             user: 'root',
-            password: '998699',
+            password: 'Guoyanjun123.',
             database: dbName
         });
 
         await new Promise((resolve, reject) => {
-            db.connect(err => err ? reject(`连接新数据库失败: ${err.message}`) : resolve());
+            db.connect(err => err ? reject(`Failed to connect to new database: ${err.message}`) : resolve());
         });
 
-        // 创建 Visit 表
+        // Create Visit table with proper indexes
         const createVisitTable = `
             CREATE TABLE IF NOT EXISTS Visit (
                 拜访记录编号 VARCHAR(50),
@@ -67,7 +65,7 @@ async function initDatabase() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         `;
 
-        // 创建 Terminal 表（客户编码唯一，避免 JOIN 膨胀）
+        // Create Terminal table (unique customer code to avoid JOIN bloat)
         const createTerminalTable = `
             CREATE TABLE IF NOT EXISTS Terminal (
                 客户编码 VARCHAR(50),
@@ -78,37 +76,39 @@ async function initDatabase() {
         `;
 
         await new Promise((resolve, reject) => {
-            db.query(createVisitTable, err => err ? reject(`创建 Visit 表失败: ${err.message}`) : resolve());
+            db.query(createVisitTable, err => err ? reject(`Failed to create Visit table: ${err.message}`) : resolve());
         });
 
         await new Promise((resolve, reject) => {
-            db.query(createTerminalTable, err => err ? reject(`创建 Terminal 表失败: ${err.message}`) : resolve());
+            db.query(createTerminalTable, err => err ? reject(`Failed to create Terminal table: ${err.message}`) : resolve());
         });
 
         app.set('db', db);
-        console.log(`数据库初始化完成: ${dbName}`);
-        console.log('Visit 和 Terminal 表已创建');
+        console.log(`Database initialization completed: ${dbName}`);
+        console.log('Visit and Terminal tables have been created successfully');
 
     } catch (error) {
-        console.error('数据库初始化失败:', error);
+        console.error('Database initialization failed:', error);
         process.exit(1);
     }
 }
 
-// ============ 心跳端点 ============
-app.get('/heartbeat', (req, res) => {
+// ============ Heartbeat endpoint ============
+app.get('/api/audit_visit/search_time/heartbeat', (req, res) => {
     lastHeartbeat = Date.now();
     res.json({ success: true, timestamp: lastHeartbeat });
 });
 
-// 上传 Visit
-app.post('/uploadVisit', (req, res) => {
-    lastHeartbeat = Date.now(); // 任何请求都视为活跃
+// Upload Visit records
+app.post('/api/audit_visit/search_time/uploadVisit', (req, res) => {
+    console.log('Processing Visit records upload');
+    lastHeartbeat = Date.now();
     const db = app.get('db');
     const records = req.body.records;
+    console.log(`Number of Visit records to process: ${records.length}`);
 
     if (!Array.isArray(records) || records.length === 0) {
-        return res.status(400).json({ success: false, error: '无效的 Visit 数据' });
+        return res.status(400).json({ success: false, error: 'Invalid Visit data provided' });
     }
 
     const values = records.map(r => [
@@ -124,22 +124,24 @@ app.post('/uploadVisit', (req, res) => {
     const sql = 'INSERT INTO Visit (拜访记录编号, 拜访开始时间, 拜访结束时间, 拜访人, 客户名称, 客户编码, 拜访用时) VALUES ?';
     db.query(sql, [values], (err, result) => {
         if (err) {
-            console.error('Visit 插入失败:', err);
+            console.error('Failed to insert Visit records:', err);
             res.status(500).json({ success: false, error: err.message });
         } else {
-            res.json({ success: true, message: `成功导入 ${result.affectedRows} 条 Visit 记录` });
+            res.json({ success: true, message: `${result.affectedRows} Visit records imported successfully` });
         }
     });
 });
 
-// 上传 Terminal（使用 INSERT IGNORE 避免重复客户编码报错）
-app.post('/uploadTerminal', (req, res) => {
-    lastHeartbeat = Date.now(); // 任何请求都视为活跃
+// Upload Terminal records (use INSERT IGNORE to avoid duplicate customer code errors)
+app.post('/api/audit_visit/search_time/uploadTerminal', (req, res) => {
+    console.log('Processing Terminal records upload');
+    lastHeartbeat = Date.now();
     const db = app.get('db');
     const records = req.body.records;
+    console.log(`Number of Terminal records to process: ${records.length}`);
 
     if (!Array.isArray(records) || records.length === 0) {
-        return res.status(400).json({ success: false, error: '无效的 Terminal 数据' });
+        return res.status(400).json({ success: false, error: 'Invalid Terminal data provided' });
     }
 
     const values = records.map(r => [
@@ -151,20 +153,25 @@ app.post('/uploadTerminal', (req, res) => {
     const sql = 'INSERT IGNORE INTO Terminal (客户编码, 所属片区, 所属大区) VALUES ?';
     db.query(sql, [values], (err, result) => {
         if (err) {
-            console.error('Terminal 插入失败:', err);
+            console.error('Failed to insert Terminal records:', err);
             res.status(500).json({ success: false, error: err.message });
         } else {
-            res.json({ success: true, message: `成功导入 ${result.affectedRows} 条 Terminal 记录（已自动去重）` });
+            res.json({ success: true, message: `${result.affectedRows} Terminal records imported successfully (duplicates automatically skipped)` });
         }
     });
 });
 
-// 查询合并后的数据（LEFT JOIN Visit + Terminal）-- 使用 DISTINCT 去重
-app.get('/getMinutes', (req, res) => {
-    lastHeartbeat = Date.now(); // 任何请求都视为活跃
+// ============ Query abnormal time records ============
+// Filters records where visit start/end times fall outside the user-defined normal time range
+app.get('/api/audit_visit/search_time/getAbnormalTime', (req, res) => {
+    lastHeartbeat = Date.now();
     const db = app.get('db');
+
     let {
-        maxMinutes = 5,
+        earliestStartTime = '07:00:00',
+        latestStartTime = '21:30:00',
+        earliestEndTime = '07:00:00',
+        latestEndTime = '21:30:00',
         visitor = '',
         customerName = '',
         customerCode = '',
@@ -174,12 +181,19 @@ app.get('/getMinutes', (req, res) => {
         region = ''
     } = req.query;
 
-    maxMinutes = parseInt(maxMinutes) || 5;
+    // Core abnormal time condition:
+    // A record is abnormal if any of its start/end times fall outside the normal range
+    // Uses STR_TO_DATE to parse the time string (format: YYYY/MM/DD HH:mm) and TIME() to extract just the time part
+    let abnormalConditions = [
+        '(TIME(STR_TO_DATE(v.`拜访开始时间`, \'%Y/%m/%d %H:%i\')) < ? OR TIME(STR_TO_DATE(v.`拜访开始时间`, \'%Y/%m/%d %H:%i\')) > ?)',
+        '(TIME(STR_TO_DATE(v.`拜访结束时间`, \'%Y/%m/%d %H:%i\')) < ? OR TIME(STR_TO_DATE(v.`拜访结束时间`, \'%Y/%m/%d %H:%i\')) > ?)'
+    ];
 
-    // 构建 LEFT JOIN 查询条件
-    let conditions = ['v.`拜访用时` <= ?'];
-    let params = [maxMinutes];
+    // The overall abnormal condition is: start time abnormal OR end time abnormal
+    let conditions = ['(' + abnormalConditions.join(' OR ') + ')'];
+    let params = [earliestStartTime, latestStartTime, earliestEndTime, latestEndTime];
 
+    // Additional filter conditions
     if (visitor) {
         conditions.push('v.`拜访人` LIKE ?');
         params.push(`%${visitor}%`);
@@ -200,12 +214,10 @@ app.get('/getMinutes', (req, res) => {
         conditions.push('v.`拜访开始时间` <= ?');
         params.push(endDate + ' 23:59:59');
     }
-    // 按所属片区筛选
     if (area) {
         conditions.push('t.`所属片区` LIKE ?');
         params.push(`%${area}%`);
     }
-    // 按所属大区筛选
     if (region) {
         conditions.push('t.`所属大区` LIKE ?');
         params.push(`%${region}%`);
@@ -213,7 +225,6 @@ app.get('/getMinutes', (req, res) => {
 
     const whereClause = conditions.join(' AND ');
 
-    // 使用 DISTINCT 去除完全相同的重复行
     const sql = `
         SELECT DISTINCT
             v.拜访记录编号,
@@ -228,12 +239,12 @@ app.get('/getMinutes', (req, res) => {
         FROM Visit v
         LEFT JOIN Terminal t ON v.客户编码 = t.客户编码
         WHERE ${whereClause}
-        ORDER BY v.\`拜访用时\` ASC, v.\`拜访开始时间\` DESC;
+        ORDER BY v.\`拜访开始时间\` DESC;
     `;
 
     db.query(sql, params, (err, results) => {
         if (err) {
-            console.error('查询合并数据失败:', err);
+            console.error('Failed to query abnormal time data:', err);
             res.status(500).json({ success: false, error: err.message });
         } else {
             res.json({ success: true, data: results });
@@ -241,8 +252,8 @@ app.get('/getMinutes', (req, res) => {
     });
 });
 
-// 获取所有片区列表（用于前端下拉选择）
-app.get('/getAreas', (req, res) => {
+// Get all area list (for frontend dropdown selection)
+app.get('/api/audit_visit/search_time/getAreas', (req, res) => {
     lastHeartbeat = Date.now();
     const db = app.get('db');
     const sql = 'SELECT DISTINCT 所属片区 FROM Terminal WHERE 所属片区 IS NOT NULL AND 所属片区 != "" ORDER BY 所属片区';
@@ -255,8 +266,8 @@ app.get('/getAreas', (req, res) => {
     });
 });
 
-// 获取所有大区列表（用于前端下拉选择）
-app.get('/getRegions', (req, res) => {
+// Get all region list (for frontend dropdown selection)
+app.get('/api/audit_visit/search_time/getRegions', (req, res) => {
     lastHeartbeat = Date.now();
     const db = app.get('db');
     const sql = 'SELECT DISTINCT 所属大区 FROM Terminal WHERE 所属大区 IS NOT NULL AND 所属大区 != "" ORDER BY 所属大区';
@@ -269,30 +280,30 @@ app.get('/getRegions', (req, res) => {
     });
 });
 
-// ============ 清理：删除整个数据库 ============
-app.post('/cleanup', async (req, res) => {
+// ============ Cleanup: Drop entire database ============
+app.post('/api/audit_visit/search_time/cleanup', async (req, res) => {
     try {
         await dropDatabase();
-        res.json({ success: true, message: `数据库 ${dbName} 及其所有表已删除` });
+        res.json({ success: true, message: `Database ${dbName} and all its tables have been deleted` });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// 删除数据库的核心函数
+// Core function to drop database
 async function dropDatabase() {
-    if (cleanedUp) return; // 防止重复清理
+    if (cleanedUp) return;
     cleanedUp = true;
 
     const db = app.get('db');
     if (db) {
-        try { db.end(); } catch (e) { /* 忽略 */ }
+        try { db.end(); } catch (e) { /* Ignore */ }
     }
 
     const cleanupDb = mysql.createConnection({
         host: 'localhost',
         user: 'root',
-        password: '998699'
+        password: 'Guoyanjun123.'
     });
 
     await new Promise((resolve, reject) => {
@@ -307,40 +318,40 @@ async function dropDatabase() {
     });
 
     cleanupDb.end();
-    console.log(`数据库已删除: ${dbName}`);
+    console.log(`Database deleted successfully: ${dbName}`);
 }
 
-// ============ 心跳超时自动清理 ============
+// ============ Heartbeat timeout auto cleanup ============
 function setupHeartbeatCheck() {
     const checkTimer = setInterval(async () => {
         const elapsed = Date.now() - lastHeartbeat;
         if (elapsed > HEARTBEAT_TIMEOUT && !cleanedUp) {
-            console.log(`\n心跳超时（${Math.round(elapsed / 1000)} 秒无活动），用户已离开，正在自动清理数据库...`);
+            console.log(`\nHeartbeat timeout (no activity for ${Math.round(elapsed / 1000)} seconds), user has left. Automatically cleaning up database...`);
             clearInterval(checkTimer);
             try {
                 await dropDatabase();
-                console.log('自动清理完成，服务器即将退出');
+                console.log('Automatic cleanup completed, server will exit now');
             } catch (error) {
-                console.error('自动清理时出错:', error.message);
+                console.error('Error occurred during automatic cleanup:', error.message);
             }
             process.exit(0);
         }
     }, HEARTBEAT_CHECK_INTERVAL);
 }
 
-// 进程退出时自动清理数据库（Ctrl+C 或 kill 信号）
+// Setup process cleanup on exit (Ctrl+C or kill signal)
 function setupProcessCleanup() {
     async function handleExit(signal) {
         if (cleanedUp) {
             process.exit(0);
             return;
         }
-        console.log(`\n收到 ${signal} 信号，正在清理数据库...`);
+        console.log(`\nReceived ${signal} signal, cleaning up database before exit...`);
         try {
             await dropDatabase();
-            console.log('清理完成，进程退出');
+            console.log('Cleanup completed, process exiting');
         } catch (error) {
-            console.error('清理时出错:', error.message);
+            console.error('Error occurred during cleanup:', error.message);
         }
         process.exit(0);
     }
@@ -349,12 +360,13 @@ function setupProcessCleanup() {
     process.on('SIGTERM', () => handleExit('SIGTERM'));
 }
 
+// Initialize database and start server
 initDatabase().then(() => {
     setupProcessCleanup();
     setupHeartbeatCheck();
     app.listen(port, () => {
-        console.log(`服务器运行在 http://localhost:${port}`);
-        console.log(`当前数据库: ${dbName}`);
-        console.log(`心跳超时时间: ${HEARTBEAT_TIMEOUT / 1000} 秒（用户关闭页面后自动清理数据库并退出）`);
+        console.log(`Server running on http://localhost:${port}`);
+        console.log(`Current database: ${dbName}`);
+        console.log(`Heartbeat timeout: ${HEARTBEAT_TIMEOUT / 1000} seconds (database will be automatically cleaned up and server exited after user closes the page)`);
     });
 });
