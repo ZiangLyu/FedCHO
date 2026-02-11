@@ -163,15 +163,15 @@ app.post('/api/audit_visit/search_time/uploadTerminal', (req, res) => {
 
 // ============ Query abnormal time records ============
 // Filters records where visit start/end times fall outside the user-defined normal time range
+// User provides a single normal time range (e.g. 07:00 ~ 21:30), any record whose start or end
+// time falls outside this range is considered abnormal
 app.get('/api/audit_visit/search_time/getAbnormalTime', (req, res) => {
     lastHeartbeat = Date.now();
     const db = app.get('db');
 
     let {
-        earliestStartTime = '07:00:00',
-        latestStartTime = '21:30:00',
-        earliestEndTime = '07:00:00',
-        latestEndTime = '21:30:00',
+        normalStartTime = '07:00:00',
+        normalEndTime = '21:30:00',
         visitor = '',
         customerName = '',
         customerCode = '',
@@ -182,16 +182,17 @@ app.get('/api/audit_visit/search_time/getAbnormalTime', (req, res) => {
     } = req.query;
 
     // Core abnormal time condition:
-    // A record is abnormal if any of its start/end times fall outside the normal range
+    // A record is abnormal if its start time OR end time falls outside the normal range [normalStartTime, normalEndTime]
     // Uses STR_TO_DATE to parse the time string (format: YYYY/MM/DD HH:mm) and TIME() to extract just the time part
-    let abnormalConditions = [
-        '(TIME(STR_TO_DATE(v.`拜访开始时间`, \'%Y/%m/%d %H:%i\')) < ? OR TIME(STR_TO_DATE(v.`拜访开始时间`, \'%Y/%m/%d %H:%i\')) > ?)',
-        '(TIME(STR_TO_DATE(v.`拜访结束时间`, \'%Y/%m/%d %H:%i\')) < ? OR TIME(STR_TO_DATE(v.`拜访结束时间`, \'%Y/%m/%d %H:%i\')) > ?)'
-    ];
+    const abnormalCondition = `(
+        TIME(STR_TO_DATE(v.\`拜访开始时间\`, '%Y/%m/%d %H:%i')) < ?
+        OR TIME(STR_TO_DATE(v.\`拜访开始时间\`, '%Y/%m/%d %H:%i')) > ?
+        OR TIME(STR_TO_DATE(v.\`拜访结束时间\`, '%Y/%m/%d %H:%i')) < ?
+        OR TIME(STR_TO_DATE(v.\`拜访结束时间\`, '%Y/%m/%d %H:%i')) > ?
+    )`;
 
-    // The overall abnormal condition is: start time abnormal OR end time abnormal
-    let conditions = ['(' + abnormalConditions.join(' OR ') + ')'];
-    let params = [earliestStartTime, latestStartTime, earliestEndTime, latestEndTime];
+    let conditions = [abnormalCondition];
+    let params = [normalStartTime, normalEndTime, normalStartTime, normalEndTime];
 
     // Additional filter conditions
     if (visitor) {

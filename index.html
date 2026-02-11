@@ -868,22 +868,14 @@
                 </div>
 
                 <div class="filter-form">
-                    <div class="filter-section-label">异常时间段设置（拜访开始/结束时间早于"最早时间"或晚于"最晚时间"的记录将被筛选出来）</div>
+                    <div class="filter-section-label">正常时间段设置（拜访开始时间或结束时间不在此时间段内的记录将被筛选出来）</div>
                     <div class="filter-item">
-                        <label for="earliestStartTime">最早开始时间</label>
-                        <input type="time" id="earliestStartTime" value="07:00">
+                        <label for="normalStartTime">正常时间段 - 开始</label>
+                        <input type="time" id="normalStartTime" value="07:00">
                     </div>
                     <div class="filter-item">
-                        <label for="latestStartTime">最晚开始时间</label>
-                        <input type="time" id="latestStartTime" value="21:30">
-                    </div>
-                    <div class="filter-item">
-                        <label for="earliestEndTime">最早结束时间</label>
-                        <input type="time" id="earliestEndTime" value="07:00">
-                    </div>
-                    <div class="filter-item">
-                        <label for="latestEndTime">最晚结束时间</label>
-                        <input type="time" id="latestEndTime" value="21:30">
+                        <label for="normalEndTime">正常时间段 - 结束</label>
+                        <input type="time" id="normalEndTime" value="21:30">
                     </div>
                     <div class="filter-section-label">其他筛选条件</div>
                     <div class="filter-item">
@@ -965,11 +957,9 @@
 
         // ============ 获取当前筛选条件描述 ============
         function getFilterDesc() {
-            var es = document.getElementById('earliestStartTime').value || '07:00';
-            var ls = document.getElementById('latestStartTime').value || '21:30';
-            var ee = document.getElementById('earliestEndTime').value || '07:00';
-            var le = document.getElementById('latestEndTime').value || '21:30';
-            return '开始时间早于 ' + es + ' 或晚于 ' + ls + '，或结束时间早于 ' + ee + ' 或晚于 ' + le;
+            var ns = document.getElementById('normalStartTime').value || '07:00';
+            var ne = document.getElementById('normalEndTime').value || '21:30';
+            return '拜访开始时间或结束时间不在 ' + ns + ' ~ ' + ne + ' 时间段内';
         }
 
         // ============ Visit 文件上传 ============
@@ -1111,10 +1101,8 @@
         // ============ 查询 ============
 
         async function queryRecords() {
-            const earliestStartTime = document.getElementById('earliestStartTime').value || '07:00';
-            const latestStartTime = document.getElementById('latestStartTime').value || '21:30';
-            const earliestEndTime = document.getElementById('earliestEndTime').value || '07:00';
-            const latestEndTime = document.getElementById('latestEndTime').value || '21:30';
+            const normalStartTime = document.getElementById('normalStartTime').value || '07:00';
+            const normalEndTime = document.getElementById('normalEndTime').value || '21:30';
             const visitor = document.getElementById('visitor').value.trim();
             const customerName = document.getElementById('customerName').value.trim();
             const customerCode = document.getElementById('customerCode').value.trim();
@@ -1124,10 +1112,8 @@
             const endDate = document.getElementById('endDate').value;
 
             const params = new URLSearchParams({
-                earliestStartTime: earliestStartTime + ':00',
-                latestStartTime: latestStartTime + ':00',
-                earliestEndTime: earliestEndTime + ':00',
-                latestEndTime: latestEndTime + ':00',
+                normalStartTime: normalStartTime + ':00',
+                normalEndTime: normalEndTime + ':00',
                 visitor,
                 customerName,
                 customerCode,
