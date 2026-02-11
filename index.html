@@ -585,13 +585,24 @@
             background: linear-gradient(135deg, #f0f4ff 0%, #e8ecff 100%);
             border-radius: 10px;
             padding: 18px;
-            border: 1px solid #c7d2fe;
+            border: 2px solid #c7d2fe;
             transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
         }
 
         .region-card:hover {
             transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.2);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.25);
+            border-color: #818cf8;
+        }
+
+        .region-card.active {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.35);
+            border-color: #4f46e5;
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
         }
 
         .region-card-name {
@@ -615,13 +626,214 @@
             margin-top: 4px;
         }
 
+        .region-card-hint {
+            font-size: 12px;
+            color: #818cf8;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
+        .region-card.active .region-card-hint {
+            color: #4338ca;
+        }
+
         .region-card.unknown {
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
             border-color: #fbbf24;
         }
 
+        .region-card.unknown:hover {
+            border-color: #f59e0b;
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.25);
+        }
+
+        .region-card.unknown.active {
+            border-color: #d97706;
+            box-shadow: 0 6px 20px rgba(217, 119, 6, 0.35);
+            background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+        }
+
         .region-card.unknown .region-card-name {
             color: #92400e;
+        }
+
+        .region-card.unknown .region-card-hint {
+            color: #b45309;
+        }
+
+        /* ============ 片区展开面板样式 ============ */
+        .area-detail-panel {
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease, padding 0.3s ease;
+            background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+            border-radius: 12px;
+            border: 2px solid #c4b5fd;
+            margin-bottom: 0;
+            padding: 0 20px;
+        }
+
+        .area-detail-panel.open {
+            max-height: 2000px;
+            opacity: 1;
+            margin-bottom: 15px;
+            padding: 20px;
+        }
+
+        .area-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .area-detail-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #5b21b6;
+        }
+
+        .area-detail-title span {
+            color: #7c3aed;
+            font-weight: 700;
+        }
+
+        .area-detail-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid #c4b5fd;
+            background: white;
+            color: #7c3aed;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            line-height: 1;
+        }
+
+        .area-detail-close:hover {
+            background: #7c3aed;
+            color: white;
+            border-color: #7c3aed;
+        }
+
+        .area-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .area-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #ddd6fe;
+            transition: all 0.2s;
+        }
+
+        .area-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
+            border-color: #a78bfa;
+        }
+
+        .area-card-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #6d28d9;
+            margin-bottom: 6px;
+            word-break: break-all;
+        }
+
+        .area-card-count {
+            font-size: 22px;
+            font-weight: 700;
+            color: #ef4444;
+            line-height: 1;
+        }
+
+        .area-card-unit {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 3px;
+        }
+
+        .area-card-percent {
+            font-size: 12px;
+            color: #7c3aed;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .area-detail-table-wrap {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #ddd6fe;
+            background: white;
+        }
+
+        .area-detail-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .area-detail-table th,
+        .area-detail-table td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid #ede9fe;
+            font-size: 13px;
+        }
+
+        .area-detail-table th {
+            background: #f5f3ff;
+            font-weight: 600;
+            color: #5b21b6;
+        }
+
+        .area-detail-table td {
+            color: #6b7280;
+        }
+
+        .area-detail-table .area-count-cell {
+            font-weight: 700;
+            color: #ef4444;
+            font-size: 15px;
+        }
+
+        .area-detail-table .area-percent-cell {
+            color: #7c3aed;
+            font-weight: 600;
+        }
+
+        .area-detail-table tbody tr:hover {
+            background: #faf5ff;
+        }
+
+        .area-detail-total {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: #ede9fe;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .area-detail-total strong {
+            color: #5b21b6;
+        }
+
+        .area-detail-total span {
+            color: #ef4444;
+            font-weight: 700;
+            font-size: 18px;
         }
 
         .region-summary-table {
@@ -846,6 +1058,11 @@
         let pageSize = 1000;
         let totalPages = 0;
 
+        // 大区 -> 片区统计的缓存数据
+        let regionAreaMap = {};
+        // 当前展开的大区名称（null 表示全部收起）
+        let expandedRegion = null;
+
         // ============ Visit 文件上传 ============
 
         function handleFileSelect(event) {
@@ -1016,6 +1233,10 @@
             regionSummaryDiv.innerHTML = '';
             document.getElementById('exportBtn').style.display = 'none';
 
+            // 重置展开状态
+            expandedRegion = null;
+            regionAreaMap = {};
+
             try {
                 const response = await fetch(API_URL + '/getMinutes?' + params.toString());
                 const result = await response.json();
@@ -1030,6 +1251,7 @@
                     } else {
                         totalPages = Math.ceil(currentData.length / pageSize);
                         statusDiv.innerHTML = '<div class="status-message status-success">查询成功！找到 ' + currentData.length + ' 条记录（已去重），共 ' + totalPages + ' 页</div>';
+                        buildRegionAreaMap();
                         renderRegionSummary();
                         displayResults();
                         renderPagination();
@@ -1044,12 +1266,31 @@
             }
         }
 
+        // ============ 构建大区->片区映射 ============
+
+        function buildRegionAreaMap() {
+            regionAreaMap = {};
+
+            currentData.forEach(function(row) {
+                var regionName = row.所属大区 || '未知大区';
+                var areaName = row.所属片区 || '未知片区';
+
+                if (!regionAreaMap[regionName]) {
+                    regionAreaMap[regionName] = {};
+                }
+                if (!regionAreaMap[regionName][areaName]) {
+                    regionAreaMap[regionName][areaName] = 0;
+                }
+                regionAreaMap[regionName][areaName]++;
+            });
+        }
+
         // ============ 大区异常统计 ============
 
         function renderRegionSummary() {
             var regionSummaryDiv = document.getElementById('regionSummaryContainer');
 
-            // 统计每个大区的异常记录数（即当前查询条件下的记录数）
+            // 统计每个大区的异常记录数
             var regionCountMap = {};
             var totalCount = currentData.length;
 
@@ -1076,18 +1317,27 @@
             html += '<div class="region-summary-desc">';
             html += '以下统计基于当前查询条件筛选出的结果，展示每个大区在该查询条件下的异常拜访记录数量。';
             html += '异常标准：拜访用时 &le; ' + (parseInt(document.getElementById('maxMinutes').value) || 5) + ' 分钟的记录。';
+            html += '<br><strong>点击大区卡片可查看该大区下各片区的异常情况明细。</strong>';
             html += '</div>';
 
             // 卡片展示
             html += '<div class="region-cards">';
             regionList.forEach(function(item) {
                 var isUnknown = (item.name === '未知大区');
-                html += '<div class="region-card' + (isUnknown ? ' unknown' : '') + '">';
+                var isActive = (expandedRegion === item.name);
+                var escapedName = item.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                html += '<div class="region-card' + (isUnknown ? ' unknown' : '') + (isActive ? ' active' : '') + '" onclick="toggleRegionDetail(\'' + escapedName + '\')" title="点击查看片区明细">';
                 html += '<div class="region-card-name">' + item.name + '</div>';
                 html += '<div class="region-card-count">' + item.count + '</div>';
                 html += '<div class="region-card-unit">条异常记录</div>';
+                html += '<div class="region-card-hint">' + (isActive ? '&#9650; 点击收起片区明细' : '&#9660; 点击展开片区明细') + '</div>';
                 html += '</div>';
             });
+            html += '</div>';
+
+            // 片区展开面板（放在卡片下方）
+            html += '<div class="area-detail-panel' + (expandedRegion ? ' open' : '') + '" id="areaDetailPanel">';
+            html += '<div id="areaDetailContent"></div>';
             html += '</div>';
 
             // 汇总条
@@ -1123,6 +1373,140 @@
             html += '</div>';
 
             regionSummaryDiv.innerHTML = html;
+
+            // 如果有展开的大区，渲染其片区内容
+            if (expandedRegion) {
+                renderAreaDetail(expandedRegion);
+            }
+        }
+
+        // ============ 切换大区片区展开 ============
+
+        function toggleRegionDetail(regionName) {
+            if (expandedRegion === regionName) {
+                // 再次点击同一大区，收起
+                expandedRegion = null;
+                var panel = document.getElementById('areaDetailPanel');
+                if (panel) {
+                    panel.classList.remove('open');
+                }
+                // 更新卡片的 active 状态和箭头
+                updateCardStates();
+            } else {
+                // 点击不同大区，展开（或切换）
+                expandedRegion = regionName;
+                renderAreaDetail(regionName);
+                var panel = document.getElementById('areaDetailPanel');
+                if (panel) {
+                    panel.classList.add('open');
+                }
+                // 更新卡片的 active 状态和箭头
+                updateCardStates();
+                // 滚动到面板位置
+                setTimeout(function() {
+                    var panelEl = document.getElementById('areaDetailPanel');
+                    if (panelEl) {
+                        panelEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }, 100);
+            }
+        }
+
+        // 更新所有大区卡片的 active 状态和箭头提示文字
+        function updateCardStates() {
+            var cards = document.querySelectorAll('.region-card');
+            cards.forEach(function(card) {
+                var nameEl = card.querySelector('.region-card-name');
+                var hintEl = card.querySelector('.region-card-hint');
+                if (!nameEl || !hintEl) return;
+
+                var cardName = nameEl.textContent;
+                if (cardName === expandedRegion) {
+                    card.classList.add('active');
+                    hintEl.innerHTML = '&#9650; 点击收起片区明细';
+                } else {
+                    card.classList.remove('active');
+                    hintEl.innerHTML = '&#9660; 点击展开片区明细';
+                }
+            });
+        }
+
+        // ============ 渲染片区明细 ============
+
+        function renderAreaDetail(regionName) {
+            var contentDiv = document.getElementById('areaDetailContent');
+            if (!contentDiv) return;
+
+            var areaMap = regionAreaMap[regionName];
+            if (!areaMap) {
+                contentDiv.innerHTML = '<p style="color: #6b7280;">该大区下无片区数据。</p>';
+                return;
+            }
+
+            // 构建片区列表并排序
+            var areaList = [];
+            var regionTotal = 0;
+            for (var key in areaMap) {
+                if (areaMap.hasOwnProperty(key)) {
+                    areaList.push({ name: key, count: areaMap[key] });
+                    regionTotal += areaMap[key];
+                }
+            }
+            areaList.sort(function(a, b) { return b.count - a.count; });
+
+            var html = '';
+
+            // 头部
+            html += '<div class="area-detail-header">';
+            html += '<div class="area-detail-title"><span>' + regionName + '</span> - 各片区异常情况明细（共 ' + areaList.length + ' 个片区）</div>';
+            html += '<button class="area-detail-close" onclick="toggleRegionDetail(\'' + regionName.replace(/'/g, "\\'") + '\')" title="收起">&times;</button>';
+            html += '</div>';
+
+            // 片区卡片
+            html += '<div class="area-cards">';
+            areaList.forEach(function(item) {
+                var percent = regionTotal > 0 ? ((item.count / regionTotal) * 100).toFixed(1) : '0.0';
+                html += '<div class="area-card">';
+                html += '<div class="area-card-name">' + item.name + '</div>';
+                html += '<div class="area-card-count">' + item.count + '</div>';
+                html += '<div class="area-card-unit">条异常记录</div>';
+                html += '<div class="area-card-percent">占本大区 ' + percent + '%</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+
+            // 片区明细表格
+            html += '<div class="area-detail-table-wrap">';
+            html += '<table class="area-detail-table">';
+            html += '<thead><tr>';
+            html += '<th>序号</th>';
+            html += '<th>所属片区</th>';
+            html += '<th>异常记录数</th>';
+            html += '<th>占本大区比例</th>';
+            html += '</tr></thead>';
+            html += '<tbody>';
+
+            areaList.forEach(function(item, index) {
+                var percent = regionTotal > 0 ? ((item.count / regionTotal) * 100).toFixed(2) : '0.00';
+                html += '<tr>';
+                html += '<td>' + (index + 1) + '</td>';
+                html += '<td>' + item.name + '</td>';
+                html += '<td class="area-count-cell">' + item.count + '</td>';
+                html += '<td class="area-percent-cell">' + percent + '%</td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+
+            // 汇总
+            html += '<div class="area-detail-total">';
+            html += '<strong>' + regionName + ' 异常合计：</strong>';
+            html += '<span>' + regionTotal + '</span>';
+            html += '<strong style="margin-left: 3px;">条</strong>';
+            html += '<span style="color: #6b7280; font-size: 13px; font-weight: normal; margin-left: 10px;">（含 ' + areaList.length + ' 个片区）</span>';
+            html += '</div>';
+
+            contentDiv.innerHTML = html;
         }
 
         // ============ 显示结果（分页） ============
@@ -1304,12 +1688,40 @@
                     '占比': percent
                 };
             });
-            // 添加合计行
             regionExportData.push({
                 '序号': '',
                 '所属大区': '合计',
                 '异常记录数': currentData.length,
                 '占比': '100.00%'
+            });
+
+            // 构建大区->片区明细统计数据
+            var areaDetailExportData = [];
+            var seq = 1;
+            regionList.forEach(function(regionItem) {
+                var areaMap = regionAreaMap[regionItem.name];
+                if (!areaMap) return;
+
+                var areaList = [];
+                for (var aKey in areaMap) {
+                    if (areaMap.hasOwnProperty(aKey)) {
+                        areaList.push({ name: aKey, count: areaMap[aKey] });
+                    }
+                }
+                areaList.sort(function(a, b) { return b.count - a.count; });
+
+                areaList.forEach(function(areaItem) {
+                    var percentInRegion = regionItem.count > 0 ? ((areaItem.count / regionItem.count) * 100).toFixed(2) + '%' : '0.00%';
+                    var percentInTotal = currentData.length > 0 ? ((areaItem.count / currentData.length) * 100).toFixed(2) + '%' : '0.00%';
+                    areaDetailExportData.push({
+                        '序号': seq++,
+                        '所属大区': regionItem.name,
+                        '所属片区': areaItem.name,
+                        '异常记录数': areaItem.count,
+                        '占本大区比例': percentInRegion,
+                        '占总体比例': percentInTotal
+                    });
+                });
             });
 
             var wb = XLSX.utils.book_new();
@@ -1340,11 +1752,23 @@
             ];
             XLSX.utils.book_append_sheet(wb, ws2, '大区异常统计');
 
+            // Sheet 3: 大区-片区明细统计
+            var ws3 = XLSX.utils.json_to_sheet(areaDetailExportData);
+            ws3['!cols'] = [
+                { wch: 8 },
+                { wch: 20 },
+                { wch: 20 },
+                { wch: 15 },
+                { wch: 15 },
+                { wch: 12 }
+            ];
+            XLSX.utils.book_append_sheet(wb, ws3, '大区-片区明细统计');
+
             var date = new Date().toISOString().split('T')[0];
             var filename = 'Visit_Terminal_合并查询_' + date + '.xlsx';
             XLSX.writeFile(wb, filename);
 
-            alert('导出成功！文件名：' + filename + '，共导出 ' + currentData.length + ' 条记录（含大区统计Sheet）');
+            alert('导出成功！文件名：' + filename + '，共导出 ' + currentData.length + ' 条记录（含大区统计、大区-片区明细统计Sheet）');
         }
 
         // ============ 清理数据库 ============
@@ -1379,6 +1803,8 @@
                     statusDiv.innerHTML = '<div class="status-message status-success">' + result.message + '</div>';
                     cleanupBtn.textContent = '已清理完毕';
                     currentData = [];
+                    regionAreaMap = {};
+                    expandedRegion = null;
                     document.getElementById('resultContainer').innerHTML = '';
                     document.getElementById('paginationContainer').style.display = 'none';
                     document.getElementById('regionSummaryContainer').innerHTML = '';
