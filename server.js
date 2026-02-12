@@ -4,28 +4,38 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 
 const app = express();
-const port = 8011;
+const port = 3000;
 
 app.use(bodyParser.json({ limit: '10000mb' }));
 app.use(bodyParser.urlencoded({ limit: '10000mb', extended: true }));
 app.use(cors());
 
-const dbName = `terminal_${Date.now()}`;
+let dbName = `terminal_${Date.now()}`;
 
-const baseDb = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'Guoyanjun123.'
-});
-
-let lastHeartbeat = Date.now();
+// ============ Database state management ============
+// clientConnected: becomes true after the first heartbeat is received
+// cleanedUp: becomes true after the database has been dropped
+// When cleanedUp is true and a new request arrives, the database is automatically re-created
+let lastHeartbeat = 0;
+let clientConnected = false;
 let cleanedUp = false;
 const HEARTBEAT_TIMEOUT = 90000;
 const HEARTBEAT_CHECK_INTERVAL = 15000;
 
-// Initialize database and create Visit and Terminal tables
+const DB_CONFIG = {
+    host: 'localhost',
+    user: 'root',
+    password: '998699'
+};
+
+// ============ Database initialization ============
 async function initDatabase() {
     try {
+        // Generate a new unique database name each time
+        dbName = `terminal_${Date.now()}`;
+
+        const baseDb = mysql.createConnection(DB_CONFIG);
+
         await new Promise((resolve, reject) => {
             baseDb.connect(err => err ? reject(`Base connection failed: ${err.message}`) : resolve());
         });
@@ -38,18 +48,12 @@ async function initDatabase() {
 
         baseDb.end();
 
-        const db = mysql.createConnection({
-            host: 'localhost',
-            user: 'root',
-            password: 'Guoyanjun123.',
-            database: dbName
-        });
+        const db = mysql.createConnection({ ...DB_CONFIG, database: dbName });
 
         await new Promise((resolve, reject) => {
             db.connect(err => err ? reject(`Failed to connect to new database: ${err.message}`) : resolve());
         });
 
-        // Create Visit table with proper indexes
         const createVisitTable = `
             CREATE TABLE IF NOT EXISTS Visit (
                 拜访记录编号 VARCHAR(50),
@@ -65,7 +69,6 @@ async function initDatabase() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         `;
 
-        // Create Terminal table (unique customer code to avoid JOIN bloat)
         const createTerminalTable = `
             CREATE TABLE IF NOT EXISTS Terminal (
                 客户编码 VARCHAR(50),
@@ -84,28 +87,51 @@ async function initDatabase() {
         });
 
         app.set('db', db);
-        console.log(`Database initialization completed: ${dbName}`);
-        console.log('Visit and Terminal tables have been created successfully');
+        cleanedUp = false;
+        console.log(`Database initialized: ${dbName}`);
+        console.log('Visit and Terminal tables created');
 
     } catch (error) {
         console.error('Database initialization failed:', error);
-        process.exit(1);
+        throw error;
+    }
+}
+
+// Ensure database exists before handling data requests.
+// If it was previously cleaned up, re-create it automatically.
+async function ensureDatabase() {
+    if (!cleanedUp) return true;
+    console.log('Database was cleaned up. Re-creating for new session...');
+    try {
+        await initDatabase();
+        return true;
+    } catch (error) {
+        console.error('Failed to re-create database:', error);
+        return false;
     }
 }
 
 // ============ Heartbeat endpoint ============
 app.get('/api/audit_visit/search_time/heartbeat', (req, res) => {
     lastHeartbeat = Date.now();
+    if (!clientConnected) {
+        clientConnected = true;
+        console.log('Client connected, heartbeat tracking started');
+    }
     res.json({ success: true, timestamp: lastHeartbeat });
 });
 
 // Upload Visit records
-app.post('/api/audit_visit/search_time/uploadVisit', (req, res) => {
-    console.log('Processing Visit records upload');
+app.post('/api/audit_visit/search_time/uploadVisit', async (req, res) => {
     lastHeartbeat = Date.now();
+    clientConnected = true;
+
+    if (!(await ensureDatabase())) {
+        return res.status(500).json({ success: false, error: 'Database unavailable, please refresh the page and try again' });
+    }
+
     const db = app.get('db');
     const records = req.body.records;
-    console.log(`Number of Visit records to process: ${records.length}`);
 
     if (!Array.isArray(records) || records.length === 0) {
         return res.status(400).json({ success: false, error: 'Invalid Visit data provided' });
@@ -132,13 +158,17 @@ app.post('/api/audit_visit/search_time/uploadVisit', (req, res) => {
     });
 });
 
-// Upload Terminal records (use INSERT IGNORE to avoid duplicate customer code errors)
-app.post('/api/audit_visit/search_time/uploadTerminal', (req, res) => {
-    console.log('Processing Terminal records upload');
+// Upload Terminal records
+app.post('/api/audit_visit/search_time/uploadTerminal', async (req, res) => {
     lastHeartbeat = Date.now();
+    clientConnected = true;
+
+    if (!(await ensureDatabase())) {
+        return res.status(500).json({ success: false, error: 'Database unavailable, please refresh the page and try again' });
+    }
+
     const db = app.get('db');
     const records = req.body.records;
-    console.log(`Number of Terminal records to process: ${records.length}`);
 
     if (!Array.isArray(records) || records.length === 0) {
         return res.status(400).json({ success: false, error: 'Invalid Terminal data provided' });
@@ -162,11 +192,14 @@ app.post('/api/audit_visit/search_time/uploadTerminal', (req, res) => {
 });
 
 // ============ Query abnormal time records ============
-// Filters records where visit start/end times fall outside the user-defined normal time range
-// User provides a single normal time range (e.g. 07:00 ~ 21:30), any record whose start or end
-// time falls outside this range is considered abnormal
-app.get('/api/audit_visit/search_time/getAbnormalTime', (req, res) => {
+app.get('/api/audit_visit/search_time/getAbnormalTime', async (req, res) => {
     lastHeartbeat = Date.now();
+    clientConnected = true;
+
+    if (!(await ensureDatabase())) {
+        return res.status(500).json({ success: false, error: 'Database unavailable, please refresh the page and try again' });
+    }
+
     const db = app.get('db');
 
     let {
@@ -181,9 +214,6 @@ app.get('/api/audit_visit/search_time/getAbnormalTime', (req, res) => {
         region = ''
     } = req.query;
 
-    // Core abnormal time condition:
-    // A record is abnormal if its start time OR end time falls outside the normal range [normalStartTime, normalEndTime]
-    // Uses STR_TO_DATE to parse the time string (format: YYYY/MM/DD HH:mm) and TIME() to extract just the time part
     const abnormalCondition = `(
         TIME(STR_TO_DATE(v.\`拜访开始时间\`, '%Y/%m/%d %H:%i')) < ?
         OR TIME(STR_TO_DATE(v.\`拜访开始时间\`, '%Y/%m/%d %H:%i')) > ?
@@ -194,7 +224,6 @@ app.get('/api/audit_visit/search_time/getAbnormalTime', (req, res) => {
     let conditions = [abnormalCondition];
     let params = [normalStartTime, normalEndTime, normalStartTime, normalEndTime];
 
-    // Additional filter conditions
     if (visitor) {
         conditions.push('v.`拜访人` LIKE ?');
         params.push(`%${visitor}%`);
@@ -253,10 +282,13 @@ app.get('/api/audit_visit/search_time/getAbnormalTime', (req, res) => {
     });
 });
 
-// Get all area list (for frontend dropdown selection)
+// Get all area list
 app.get('/api/audit_visit/search_time/getAreas', (req, res) => {
     lastHeartbeat = Date.now();
     const db = app.get('db');
+    if (!db || cleanedUp) {
+        return res.json({ success: true, data: [] });
+    }
     const sql = 'SELECT DISTINCT 所属片区 FROM Terminal WHERE 所属片区 IS NOT NULL AND 所属片区 != "" ORDER BY 所属片区';
     db.query(sql, (err, results) => {
         if (err) {
@@ -267,10 +299,13 @@ app.get('/api/audit_visit/search_time/getAreas', (req, res) => {
     });
 });
 
-// Get all region list (for frontend dropdown selection)
+// Get all region list
 app.get('/api/audit_visit/search_time/getRegions', (req, res) => {
     lastHeartbeat = Date.now();
     const db = app.get('db');
+    if (!db || cleanedUp) {
+        return res.json({ success: true, data: [] });
+    }
     const sql = 'SELECT DISTINCT 所属大区 FROM Terminal WHERE 所属大区 IS NOT NULL AND 所属大区 != "" ORDER BY 所属大区';
     db.query(sql, (err, results) => {
         if (err) {
@@ -281,7 +316,7 @@ app.get('/api/audit_visit/search_time/getRegions', (req, res) => {
     });
 });
 
-// ============ Cleanup: Drop entire database ============
+// ============ Cleanup: Drop database ============
 app.post('/api/audit_visit/search_time/cleanup', async (req, res) => {
     try {
         await dropDatabase();
@@ -291,68 +326,67 @@ app.post('/api/audit_visit/search_time/cleanup', async (req, res) => {
     }
 });
 
-// Core function to drop database
+// Core function to drop database (does NOT exit process)
 async function dropDatabase() {
     if (cleanedUp) return;
     cleanedUp = true;
+    clientConnected = false;
 
     const db = app.get('db');
     if (db) {
         try { db.end(); } catch (e) { /* Ignore */ }
+        app.set('db', null);
     }
 
-    const cleanupDb = mysql.createConnection({
-        host: 'localhost',
-        user: 'root',
-        password: 'Guoyanjun123.'
-    });
+    try {
+        const cleanupDb = mysql.createConnection(DB_CONFIG);
 
-    await new Promise((resolve, reject) => {
-        cleanupDb.connect(err => err ? reject(err) : resolve());
-    });
-
-    await new Promise((resolve, reject) => {
-        cleanupDb.query(`DROP DATABASE IF EXISTS \`${dbName}\``, err => {
-            if (err) reject(err);
-            else resolve();
+        await new Promise((resolve, reject) => {
+            cleanupDb.connect(err => err ? reject(err) : resolve());
         });
-    });
 
-    cleanupDb.end();
-    console.log(`Database deleted successfully: ${dbName}`);
+        await new Promise((resolve, reject) => {
+            cleanupDb.query(`DROP DATABASE IF EXISTS \`${dbName}\``, err => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        cleanupDb.end();
+        console.log(`Database deleted: ${dbName}`);
+    } catch (error) {
+        console.error('Error dropping database:', error.message);
+    }
 }
 
-// ============ Heartbeat timeout auto cleanup ============
+// ============ Heartbeat timeout: only clean database, do NOT exit ============
 function setupHeartbeatCheck() {
-    const checkTimer = setInterval(async () => {
+    setInterval(async () => {
+        // Only check timeout if a client has connected and database hasn't been cleaned yet
+        if (!clientConnected || cleanedUp) return;
+
         const elapsed = Date.now() - lastHeartbeat;
-        if (elapsed > HEARTBEAT_TIMEOUT && !cleanedUp) {
-            console.log(`\nHeartbeat timeout (no activity for ${Math.round(elapsed / 1000)} seconds), user has left. Automatically cleaning up database...`);
-            clearInterval(checkTimer);
+        if (elapsed > HEARTBEAT_TIMEOUT) {
+            console.log(`\nHeartbeat timeout (${Math.round(elapsed / 1000)}s no activity). User left. Cleaning up database...`);
             try {
                 await dropDatabase();
-                console.log('Automatic cleanup completed, server will exit now');
+                console.log('Database cleaned up. Server continues running, waiting for next user...');
             } catch (error) {
-                console.error('Error occurred during automatic cleanup:', error.message);
+                console.error('Cleanup error:', error.message);
             }
-            process.exit(0);
         }
     }, HEARTBEAT_CHECK_INTERVAL);
 }
 
-// Setup process cleanup on exit (Ctrl+C or kill signal)
+// Process exit cleanup (Ctrl+C or kill): drop database AND exit
 function setupProcessCleanup() {
     async function handleExit(signal) {
-        if (cleanedUp) {
-            process.exit(0);
-            return;
-        }
-        console.log(`\nReceived ${signal} signal, cleaning up database before exit...`);
+        console.log(`\nReceived ${signal}, cleaning up...`);
         try {
             await dropDatabase();
-            console.log('Cleanup completed, process exiting');
+            console.log('Cleanup done, exiting');
         } catch (error) {
-            console.error('Error occurred during cleanup:', error.message);
+            console.error('Cleanup error:', error.message);
         }
         process.exit(0);
     }
@@ -361,13 +395,18 @@ function setupProcessCleanup() {
     process.on('SIGTERM', () => handleExit('SIGTERM'));
 }
 
-// Initialize database and start server
+// ============ Start server ============
 initDatabase().then(() => {
     setupProcessCleanup();
     setupHeartbeatCheck();
     app.listen(port, () => {
         console.log(`Server running on http://localhost:${port}`);
         console.log(`Current database: ${dbName}`);
-        console.log(`Heartbeat timeout: ${HEARTBEAT_TIMEOUT / 1000} seconds (database will be automatically cleaned up and server exited after user closes the page)`);
+        console.log(`Heartbeat timeout: ${HEARTBEAT_TIMEOUT / 1000}s`);
+        console.log('Timeout behavior: clean database only (server keeps running)');
+        console.log('Waiting for client connection...');
     });
+}).catch(err => {
+    console.error('Failed to start:', err);
+    process.exit(1);
 });
